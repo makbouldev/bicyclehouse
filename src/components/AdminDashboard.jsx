@@ -52,6 +52,8 @@ const AdminDashboard = ({
     variantsJson: '[\n  {\n    "name": "Couleur",\n    "type": "color",\n    "options": [\n      {"value": "Noir", "code": "#111111"},\n      {"value": "Rouge", "code": "#DC3545"}\n    ]\n  }\n]'
   });
 
+  const [uploadedImages, setUploadedImages] = useState([]);
+
   // Handle Login Submission
   const handleLogin = (e) => {
     e.preventDefault();
@@ -103,6 +105,7 @@ const AdminDashboard = ({
   const openModal = (product = null) => {
     if (product) {
       setEditingProduct(product);
+      setUploadedImages(product.images || (product.image ? [product.image] : []));
       setProductForm({
         title: product.title,
         brand: product.brand || 'PIKALA DETACHEE',
@@ -120,6 +123,7 @@ const AdminDashboard = ({
       });
     } else {
       setEditingProduct(null);
+      setUploadedImages([]);
       setProductForm({
         title: '',
         brand: 'PIKALA DETACHEE',
@@ -135,6 +139,29 @@ const AdminDashboard = ({
       });
     }
     setShowProductModal(true);
+  };
+
+  const handleFileChange = (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+
+    const filePromises = files.map(file => {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          resolve(reader.result);
+        };
+        reader.readAsDataURL(file);
+      });
+    });
+
+    Promise.all(filePromises).then(base64Images => {
+      setUploadedImages(prev => [...prev, ...base64Images]);
+    });
+  };
+
+  const handleRemoveImage = (indexToRemove) => {
+    setUploadedImages(prev => prev.filter((_, idx) => idx !== indexToRemove));
   };
 
   // Handle Product Form Submit
@@ -175,8 +202,8 @@ const AdminDashboard = ({
       price: priceNum,
       oldPrice: oldPriceNum,
       discount: discountNum,
-      image: productForm.image || '/bicyclehouse/hero.png',
-      images: [productForm.image || '/bicyclehouse/hero.png'],
+      image: uploadedImages.length > 0 ? uploadedImages[0] : (productForm.image || '/bicyclehouse/hero.png'),
+      images: uploadedImages.length > 0 ? uploadedImages : [productForm.image || '/bicyclehouse/hero.png'],
       description: productForm.description,
       isSoldOut: editingProduct ? editingProduct.isSoldOut : false,
       rating: editingProduct ? editingProduct.rating : 5.0,
@@ -711,9 +738,70 @@ const AdminDashboard = ({
                       />
                     </div>
 
-                    {/* Image path */}
+                    {/* Local File Upload Area */}
                     <div className="col-12">
-                      <label className="form-label small fw-bold text-muted">Chemin de l'image (Optionnel)</label>
+                      <label className="form-label small fw-bold text-muted">Photos du Produit (Local) *</label>
+                      <div 
+                        className="border border-dashed rounded-3 p-4 text-center cursor-pointer"
+                        style={{ 
+                          borderColor: 'var(--pk-orange)', 
+                          backgroundColor: 'rgba(255, 124, 21, 0.03)',
+                          transition: 'all 0.2s ease',
+                          position: 'relative'
+                        }}
+                        onClick={() => document.getElementById('productImageUpload').click()}
+                      >
+                        <input 
+                          type="file" 
+                          id="productImageUpload" 
+                          multiple 
+                          accept="image/*" 
+                          className="d-none" 
+                          onChange={handleFileChange}
+                        />
+                        <div className="d-flex flex-column align-items-center gap-2">
+                          <Plus size={24} className="text-orange" />
+                          <span className="fw-semibold text-dark" style={{ fontSize: '0.85rem' }}>Sélectionner des images depuis votre ordinateur</span>
+                          <span className="text-muted" style={{ fontSize: '0.75rem' }}>Formats acceptés: PNG, JPG, JPEG (Vous pouvez en sélectionner plusieurs)</span>
+                        </div>
+                      </div>
+
+                      {/* Image previews */}
+                      {uploadedImages.length > 0 && (
+                        <div className="d-flex flex-wrap gap-2.5 mt-3 p-2 bg-light rounded-3 border">
+                          {uploadedImages.map((img, idx) => (
+                            <div 
+                              key={idx} 
+                              className="position-relative border rounded-3 overflow-hidden bg-white shadow-sm" 
+                              style={{ width: '80px', height: '80px', transition: 'all 0.2s' }}
+                            >
+                              <img src={img} alt="" className="w-100 h-100 object-fit-contain p-1" />
+                              {idx === 0 && (
+                                <span className="position-absolute top-0 start-0 badge bg-orange text-white" style={{ fontSize: '0.55rem', borderRadius: '0 0 8px 0' }}>
+                                  Principale
+                                </span>
+                              )}
+                              <button 
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRemoveImage(idx);
+                                }}
+                                className="btn btn-danger btn-sm p-1 rounded-circle position-absolute top-0 end-0 m-1 shadow-sm d-flex align-items-center justify-content-center"
+                                style={{ width: '20px', height: '20px', fontSize: '0.65rem' }}
+                                title="Supprimer cette image"
+                              >
+                                <X size={10} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Image path fallback (text-input) */}
+                    <div className="col-12">
+                      <label className="form-label small fw-bold text-muted">Ou URL de l'image (Chemin textuel alternatif)</label>
                       <input 
                         type="text" 
                         className="form-control rounded-3" 
