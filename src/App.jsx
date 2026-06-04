@@ -1458,71 +1458,7 @@ function App() {
                       </div>
                     </div>
 
-                    {/* Variant Selector */}
-                    {selectedProduct.variants && selectedProduct.variants.length > 0 && (
-                      <div className="mb-4 text-start">
-                        {selectedProduct.variants.map((v) => (
-                          <div key={v.name} className="mb-3">
-                            <label className="form-label small fw-bold text-uppercase text-muted mb-2">
-                              {v.name} : <span className="text-dark fw-bold">{selectedVariants[v.name]}</span>
-                            </label>
-                            {v.type === 'color' ? (
-                              <div className="d-flex gap-2.5 align-items-center">
-                                {v.options.map((opt) => {
-                                  const val = opt.value || opt;
-                                  const isActive = selectedVariants[v.name] === val;
-                                  return (
-                                    <button
-                                      key={val}
-                                      type="button"
-                                      onClick={() => setSelectedVariants(prev => ({ ...prev, [v.name]: val }))}
-                                      className="rounded-circle border-0 d-flex align-items-center justify-content-center"
-                                      style={{
-                                        width: '32px',
-                                        height: '32px',
-                                        backgroundColor: opt.code || '#ccc',
-                                        border: isActive ? '3px solid var(--pk-orange)' : '1px solid rgba(0,0,0,0.15)',
-                                        outline: isActive ? '2px solid rgba(255, 124, 21, 0.25)' : 'none',
-                                        boxShadow: isActive ? 'inset 0 0 0 2px white' : 'none',
-                                        cursor: 'pointer',
-                                        transition: 'all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1)'
-                                      }}
-                                      title={val}
-                                    />
-                                  );
-                                })}
-                              </div>
-                            ) : (
-                              <div className="d-flex flex-wrap gap-2">
-                                {v.options.map((opt) => {
-                                  const val = opt.value || opt;
-                                  const isActive = selectedVariants[v.name] === val;
-                                  return (
-                                    <button
-                                      key={val}
-                                      type="button"
-                                      onClick={() => setSelectedVariants(prev => ({ ...prev, [v.name]: val }))}
-                                      className={`btn btn-sm rounded-pill px-3 py-1.5 fw-semibold ${
-                                        isActive 
-                                          ? 'btn-dark' 
-                                          : 'btn-outline-secondary'
-                                      }`}
-                                      style={{
-                                        fontSize: '0.78rem',
-                                        border: isActive ? '1.5px solid var(--pk-black)' : '1px solid var(--pk-border-color)',
-                                        transition: 'all 0.15s ease'
-                                      }}
-                                    >
-                                      {val}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
+
 
                     {/* Actions panel */}
                     <div className="mt-auto d-flex flex-wrap gap-3">
