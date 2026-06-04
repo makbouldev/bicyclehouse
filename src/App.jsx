@@ -35,8 +35,6 @@ import HeroBanner from './components/HeroBanner';
 import Sidebar from './components/Sidebar';
 import Toolbar from './components/Toolbar';
 import ProductGrid from './components/ProductGrid';
-import AdminDashboard from './components/AdminDashboard';
-
 // Import mock data
 import { PRODUCTS, CATEGORIES, MOCK_ORDERS } from './data/products';
 
@@ -530,17 +528,6 @@ function App() {
         
         {/* CONDITIONAL ROUTING FOR VIEWS */}
         
-        {/* Admin Dashboard view */}
-        {currentView === 'admin' && (
-          <AdminDashboard 
-            products={products}
-            setProducts={setProducts}
-            orders={orders}
-            setOrders={setOrders}
-            isAdminLoggedIn={isAdminLoggedIn}
-            setIsAdminLoggedIn={setIsAdminLoggedIn}
-          />
-        )}
         
         {/* 1. SHOP VIEW */}
         {currentView === 'shop' && (
@@ -1604,12 +1591,12 @@ function App() {
                 <li><button onClick={() => setView('faqs')} className="btn btn-link p-0 text-muted text-decoration-none">FAQs / Livraison</button></li>
                 <li><button onClick={() => setView('contact')} className="btn btn-link p-0 text-muted text-decoration-none">Contactez-Nous</button></li>
                 <li>
-                  <button 
-                    onClick={() => setView('admin')} 
+                  <a 
+                    href="/bicyclehouse/admin.html" 
                     className="btn btn-link p-0 text-orange fw-bold text-decoration-none mt-2 d-flex align-items-center gap-1"
                   >
                     <span>🔑 Espace Admin</span>
-                  </button>
+                  </a>
                 </li>
               </ul>
             </div>

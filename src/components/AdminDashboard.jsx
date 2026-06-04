@@ -296,10 +296,15 @@ const AdminDashboard = ({
           <h2 className="fw-bold m-0 text-orange" style={{ fontFamily: 'var(--pk-font-heading)' }}>Espace Administration</h2>
           <p className="text-muted small mb-0">Gérez le catalogue produits, les stocks et suivez les commandes clients.</p>
         </div>
-        <button onClick={handleLogout} className="btn btn-outline-dark rounded-pill py-2 px-3 d-flex align-items-center gap-1.5" style={{ fontSize: '0.88rem' }}>
-          <LogOut size={16} />
-          <span>Déconnexion</span>
-        </button>
+        <div className="d-flex gap-2">
+          <a href="/bicyclehouse/" className="btn btn-outline-dark rounded-pill py-2 px-3.5 d-flex align-items-center gap-1.5" style={{ fontSize: '0.88rem', textDecoration: 'none', fontWeight: '500' }}>
+            <span>Retour Boutique 🛒</span>
+          </a>
+          <button onClick={handleLogout} className="btn btn-outline-dark rounded-pill py-2 px-3 d-flex align-items-center gap-1.5" style={{ fontSize: '0.88rem' }}>
+            <LogOut size={16} />
+            <span>Déconnexion</span>
+          </button>
+        </div>
       </div>
 
       {/* Statistics Row */}
