@@ -213,7 +213,7 @@ function App() {
   };
 
   // Cart Operations
-  const handleAddToCart = (product, variants = {}) => {
+  const handleAddToCart = (product, variants = {}, selectedImage = null) => {
     if (product.isSoldOut) {
       showToast('Désolé, ce produit est épuisé !', 'danger');
       return;
@@ -228,10 +228,12 @@ function App() {
       });
     }
     const finalVariants = Object.keys(variants).length > 0 ? variants : defaultVariants;
+    const finalImage = selectedImage || product.image;
     
     setCart((prevCart) => {
       const existingItem = prevCart.find((item) => {
         if (item.product.id !== product.id) return false;
+        if (item.selectedImage !== finalImage) return false;
         const itemVars = item.selectedVariants || {};
         return Object.entries(finalVariants).every(([key, value]) => itemVars[key] === value);
       });
@@ -241,6 +243,7 @@ function App() {
         return prevCart.map((item) => {
           const itemVars = item.selectedVariants || {};
           const isMatch = item.product.id === product.id && 
+            item.selectedImage === finalImage &&
             Object.entries(finalVariants).every(([key, value]) => itemVars[key] === value);
           
           return isMatch 
@@ -249,16 +252,17 @@ function App() {
         });
       } else {
         showToast(`Ajouté au panier : ${product.title}`);
-        return [...prevCart, { product, quantity: 1, selectedVariants: finalVariants }];
+        return [...prevCart, { product, quantity: 1, selectedVariants: finalVariants, selectedImage: finalImage }];
       }
     });
   };
 
-  const handleUpdateQty = (productId, delta, selectedVariants = {}) => {
+  const handleUpdateQty = (productId, delta, selectedVariants = {}, selectedImage = null) => {
     setCart((prevCart) => {
       return prevCart.map((item) => {
         const itemVars = item.selectedVariants || {};
         const isMatch = item.product.id === productId && 
+          (!selectedImage || item.selectedImage === selectedImage) &&
           Object.entries(selectedVariants).every(([key, value]) => itemVars[key] === value);
         
         if (isMatch) {
@@ -270,11 +274,12 @@ function App() {
     });
   };
 
-  const handleRemoveFromCart = (productId, selectedVariants = {}) => {
+  const handleRemoveFromCart = (productId, selectedVariants = {}, selectedImage = null) => {
     setCart((prevCart) => {
       const itemToRemove = prevCart.find((item) => {
         const itemVars = item.selectedVariants || {};
         return item.product.id === productId && 
+          (!selectedImage || item.selectedImage === selectedImage) &&
           Object.entries(selectedVariants).every(([key, value]) => itemVars[key] === value);
       });
       if (itemToRemove) {
@@ -283,6 +288,7 @@ function App() {
       return prevCart.filter((item) => {
         const itemVars = item.selectedVariants || {};
         const isMatch = item.product.id === productId && 
+          (!selectedImage || item.selectedImage === selectedImage) &&
           Object.entries(selectedVariants).every(([key, value]) => itemVars[key] === value);
         return !isMatch;
       });
@@ -371,7 +377,7 @@ function App() {
           id: item.product.id,
           title: item.product.title,
           price: item.product.price,
-          image: item.product.image,
+          image: item.selectedImage || item.product.image,
           brand: item.product.brand
         },
         quantity: item.quantity,
@@ -646,7 +652,7 @@ function App() {
                                   <div className="d-flex align-items-center gap-3 py-2">
                                     <div className="border rounded p-1" style={{ width: '50px', height: '50px', flexShrink: 0 }}>
                                       <img 
-                                        src={item.product.image} 
+                                        src={item.selectedImage || item.product.image} 
                                         alt={item.product.title} 
                                         className="w-100 h-100 object-fit-contain" 
                                       />
@@ -674,14 +680,14 @@ function App() {
                                 <td>
                                   <div className="d-flex justify-content-center align-items-center gap-2">
                                     <button 
-                                      onClick={() => handleUpdateQty(item.product.id, -1, item.selectedVariants)}
+                                      onClick={() => handleUpdateQty(item.product.id, -1, item.selectedVariants, item.selectedImage)}
                                       className="btn btn-outline-secondary btn-sm p-1 rounded-circle d-flex"
                                     >
                                       <Minus size={12} />
                                     </button>
                                     <span className="fw-bold px-2">{item.quantity}</span>
                                     <button 
-                                      onClick={() => handleUpdateQty(item.product.id, 1, item.selectedVariants)}
+                                      onClick={() => handleUpdateQty(item.product.id, 1, item.selectedVariants, item.selectedImage)}
                                       className="btn btn-outline-secondary btn-sm p-1 rounded-circle d-flex"
                                     >
                                       <Plus size={12} />
@@ -691,7 +697,7 @@ function App() {
                                 <td className="text-end fw-semibold">{item.product.price * item.quantity} DH</td>
                                 <td className="text-end">
                                   <button 
-                                    onClick={() => handleRemoveFromCart(item.product.id, item.selectedVariants)}
+                                    onClick={() => handleRemoveFromCart(item.product.id, item.selectedVariants, item.selectedImage)}
                                     className="btn btn-link text-muted p-0"
                                   >
                                     <Trash2 size={16} />
@@ -829,7 +835,7 @@ function App() {
                           <div key={`${item.product.id}-${idx}`} className="d-flex align-items-center justify-content-between mb-3 text-start">
                             <div className="d-flex align-items-center gap-2.5">
                               <div className="border rounded p-0.5" style={{ width: '36px', height: '36px', flexShrink: 0 }}>
-                                <img src={item.product.image} alt={item.product.title} className="w-100 h-100 object-fit-contain" />
+                                <img src={item.selectedImage || item.product.image} alt={item.product.title} className="w-100 h-100 object-fit-contain" />
                               </div>
                               <div>
                                 <div className="small fw-bold text-truncate" style={{ maxWidth: '160px' }}>{item.product.title}</div>
@@ -1239,7 +1245,7 @@ function App() {
                 {cart.map((item, idx) => (
                   <div key={`${item.product.id}-${idx}`} className="cart-item">
                     <div className="border rounded p-1" style={{ width: '64px', height: '64px', flexShrink: 0 }}>
-                      <img src={item.product.image} alt={item.product.title} className="w-100 h-100 object-fit-contain" />
+                      <img src={item.selectedImage || item.product.image} alt={item.product.title} className="w-100 h-100 object-fit-contain" />
                     </div>
                     <div className="cart-item-details">
                       <div className="cart-item-title" title={item.product.title}>{item.product.title}</div>
@@ -1256,21 +1262,21 @@ function App() {
                       
                       <div className="cart-item-qty">
                         <button 
-                          onClick={() => handleUpdateQty(item.product.id, -1, item.selectedVariants)}
+                          onClick={() => handleUpdateQty(item.product.id, -1, item.selectedVariants, item.selectedImage)}
                           className="qty-btn"
                         >
                           <Minus size={10} />
                         </button>
                         <span className="small fw-bold px-1">{item.quantity}</span>
                         <button 
-                          onClick={() => handleUpdateQty(item.product.id, 1, item.selectedVariants)}
+                          onClick={() => handleUpdateQty(item.product.id, 1, item.selectedVariants, item.selectedImage)}
                           className="qty-btn"
                         >
                           <Plus size={10} />
                         </button>
  
                         <button 
-                          onClick={() => handleRemoveFromCart(item.product.id, item.selectedVariants)}
+                          onClick={() => handleRemoveFromCart(item.product.id, item.selectedVariants, item.selectedImage)}
                           className="btn btn-link text-danger p-0 ms-auto text-decoration-none"
                           style={{ fontSize: '0.72rem' }}
                         >
@@ -1522,7 +1528,10 @@ function App() {
                     <div className="mt-auto d-flex flex-wrap gap-3">
                       <button 
                         onClick={() => {
-                          handleAddToCart(selectedProduct, selectedVariants);
+                          const currentImg = (selectedProduct.images && selectedProduct.images.length > 0)
+                            ? selectedProduct.images[activeImageIndex]
+                            : selectedProduct.image;
+                          handleAddToCart(selectedProduct, selectedVariants, currentImg);
                           setSelectedProduct(null);
                           setCartOpen(true);
                         }}

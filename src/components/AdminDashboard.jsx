@@ -416,19 +416,29 @@ const AdminDashboard = ({
 
                       {/* Items details */}
                       <td>
-                        <div className="d-flex flex-column gap-1">
+                        <div className="d-flex flex-column gap-1.5">
                           {order.items.map((item, idx) => (
-                            <div key={idx} className="bg-light p-1 px-2 rounded border" style={{ fontSize: '0.78rem', maxWidth: '280px' }}>
-                              <div className="fw-bold text-truncate">{item.product.title}</div>
-                              <div className="d-flex justify-content-between text-muted" style={{ fontSize: '0.72rem' }}>
-                                <span>Quantité: {item.quantity}</span>
-                                <span>{item.product.price} DH</span>
+                            <div key={idx} className="bg-light p-1.5 px-2.5 rounded border d-flex align-items-center gap-2" style={{ fontSize: '0.78rem', maxWidth: '320px' }}>
+                              <div className="border rounded bg-white p-0.5" style={{ width: '40px', height: '40px', flexShrink: 0 }}>
+                                <img 
+                                  src={item.product.image} 
+                                  alt="" 
+                                  className="w-100 h-100 object-fit-contain" 
+                                  onError={(e) => { e.target.src = '/bicyclehouse/hero.png'; }}
+                                />
                               </div>
-                              {item.selectedVariants && Object.keys(item.selectedVariants).length > 0 && (
-                                <div className="text-orange" style={{ fontSize: '0.7rem', fontWeight: '500' }}>
-                                  {Object.entries(item.selectedVariants).map(([k, v]) => `${k}: ${v}`).join(' | ')}
+                              <div className="flex-grow-1 min-w-0">
+                                <div className="fw-bold text-truncate" title={item.product.title}>{item.product.title}</div>
+                                <div className="d-flex justify-content-between text-muted" style={{ fontSize: '0.72rem' }}>
+                                  <span>Quantité: {item.quantity}</span>
+                                  <span>{item.product.price} DH</span>
                                 </div>
-                              )}
+                                {item.selectedVariants && Object.keys(item.selectedVariants).length > 0 && (
+                                  <div className="text-orange fw-semibold" style={{ fontSize: '0.7rem' }}>
+                                    {Object.entries(item.selectedVariants).map(([k, v]) => `${k}: ${v}`).join(' | ')}
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           ))}
                         </div>
