@@ -175,8 +175,8 @@ const AdminDashboard = ({
       price: priceNum,
       oldPrice: oldPriceNum,
       discount: discountNum,
-      image: productForm.image || '/bicyclehouse/src/assets/hero.png',
-      images: [productForm.image || '/bicyclehouse/src/assets/hero.png'],
+      image: productForm.image || '/bicyclehouse/hero.png',
+      images: [productForm.image || '/bicyclehouse/hero.png'],
       description: productForm.description,
       isSoldOut: editingProduct ? editingProduct.isSoldOut : false,
       rating: editingProduct ? editingProduct.rating : 5.0,
@@ -709,7 +709,7 @@ const AdminDashboard = ({
                         className="form-control rounded-3" 
                         value={productForm.image}
                         onChange={(e) => setProductForm(prev => ({ ...prev, image: e.target.value }))}
-                        placeholder="ex: /bicyclehouse/src/assets/products/shimano_pads.png"
+                        placeholder="ex: /bicyclehouse/products/shimano_pads.png"
                       />
                     </div>
 

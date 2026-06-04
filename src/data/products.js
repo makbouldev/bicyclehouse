@@ -11,10 +11,10 @@ export const PRODUCTS = [
     isSoldOut: true,
     rating: 4.8,
     reviewsCount: 18,
-    image: '/bicyclehouse/src/assets/products/shimano_oil.png',
+    image: '/bicyclehouse/products/shimano_oil.png',
     images: [
-      '/bicyclehouse/src/assets/products/shimano_oil.png',
-      '/bicyclehouse/src/assets/products/shimano_pads.png'
+      '/bicyclehouse/products/shimano_oil.png',
+      '/bicyclehouse/products/shimano_pads.png'
     ],
     description: 'L\'huile minérale Shimano de haute qualité pour freins à disque hydrauliques. Assure une performance de freinage optimale et stable dans toutes les conditions météorologiques. Flacon de 60 ml idéal pour un entretien individuel.'
   },
@@ -30,9 +30,9 @@ export const PRODUCTS = [
     isSoldOut: false,
     rating: 4.5,
     reviewsCount: 12,
-    image: '/bicyclehouse/src/assets/products/zefal_lube.png',
+    image: '/bicyclehouse/products/zefal_lube.png',
     images: [
-      '/bicyclehouse/src/assets/products/zefal_lube.png'
+      '/bicyclehouse/products/zefal_lube.png'
     ],
     description: 'Le Pro Wet Lube est un lubrifiant biodégradable longue durée adapté aux conditions humides. À base d\'esters synthétiques, il protège durablement la chaîne contre la rouille et l\'usure.'
   },
@@ -48,10 +48,10 @@ export const PRODUCTS = [
     isSoldOut: false,
     rating: 4.2,
     reviewsCount: 25,
-    image: '/bicyclehouse/src/assets/products/co2_cartridge.png',
+    image: '/bicyclehouse/products/co2_cartridge.png',
     images: [
-      '/bicyclehouse/src/assets/products/co2_cartridge.png',
-      '/bicyclehouse/src/assets/products/zefal_pump.png'
+      '/bicyclehouse/products/co2_cartridge.png',
+      '/bicyclehouse/products/zefal_pump.png'
     ],
     description: 'Cartouche de CO2 filetée de 25g, conçue pour gonfler rapidement les pneus à haute pression. Idéale pour les VTT, VTC ou vélos de route lors de crevaisons rapides.'
   },
@@ -67,10 +67,10 @@ export const PRODUCTS = [
     isSoldOut: false,
     rating: 4.9,
     reviewsCount: 31,
-    image: '/bicyclehouse/src/assets/products/shimano_deore.png',
+    image: '/bicyclehouse/products/shimano_deore.png',
     images: [
-      '/bicyclehouse/src/assets/products/shimano_deore.png',
-      '/bicyclehouse/src/assets/products/shimano_pads.png'
+      '/bicyclehouse/products/shimano_deore.png',
+      '/bicyclehouse/products/shimano_pads.png'
     ],
     description: 'Dérailleur arrière Shimano Deore M6100 de 12 vitesses offrant un changement de vitesse rapide et silencieux sur tous les pignons. Technologie Shadow RD+ pour une tension de chaîne optimale.'
   },
@@ -86,10 +86,10 @@ export const PRODUCTS = [
     isSoldOut: false,
     rating: 4.7,
     reviewsCount: 42,
-    image: '/bicyclehouse/src/assets/products/shimano_pads.png',
+    image: '/bicyclehouse/products/shimano_pads.png',
     images: [
-      '/bicyclehouse/src/assets/products/shimano_pads.png',
-      '/bicyclehouse/src/assets/products/shimano_oil.png'
+      '/bicyclehouse/products/shimano_pads.png',
+      '/bicyclehouse/products/shimano_oil.png'
     ],
     description: 'Plaquettes de frein en résine organique d\'origine Shimano B05S. Offrent une excellente modulation de freinage, un faible niveau de bruit et une durabilité accrue par rapport au modèle précédent B01S/B03S.'
   },
@@ -105,9 +105,9 @@ export const PRODUCTS = [
     isSoldOut: false,
     rating: 4.6,
     reviewsCount: 15,
-    image: '/bicyclehouse/src/assets/products/rockrider_helmet.png',
+    image: '/bicyclehouse/products/rockrider_helmet.png',
     images: [
-      '/bicyclehouse/src/assets/products/rockrider_helmet.png'
+      '/bicyclehouse/products/rockrider_helmet.png'
     ],
     description: 'Casque de vélo tout-terrain léger, confortable et robuste. Équipé de 17 aérations pour une ventilation optimale et d\'une visière amovible pour vous protéger des branches et du soleil.'
   },
@@ -123,10 +123,10 @@ export const PRODUCTS = [
     isSoldOut: false,
     rating: 4.8,
     reviewsCount: 14,
-    image: '/bicyclehouse/src/assets/products/guidon_vtt.png',
+    image: '/bicyclehouse/products/guidon_vtt.png',
     images: [
-      '/bicyclehouse/src/assets/products/guidon_vtt.png',
-      '/bicyclehouse/src/assets/products/poignees_vtt.png'
+      '/bicyclehouse/products/guidon_vtt.png',
+      '/bicyclehouse/products/poignees_vtt.png'
     ],
     variants: [
       {
@@ -160,10 +160,10 @@ export const PRODUCTS = [
     isSoldOut: false,
     rating: 4.7,
     reviewsCount: 31,
-    image: '/bicyclehouse/src/assets/products/selle_velo.png',
+    image: '/bicyclehouse/products/selle_velo.png',
     images: [
-      '/bicyclehouse/src/assets/products/selle_velo.png',
-      '/bicyclehouse/src/assets/products/poignees_vtt.png'
+      '/bicyclehouse/products/selle_velo.png',
+      '/bicyclehouse/products/poignees_vtt.png'
     ],
     variants: [
       {
@@ -186,10 +186,10 @@ export const PRODUCTS = [
     isSoldOut: false,
     rating: 4.5,
     reviewsCount: 17,
-    image: '/bicyclehouse/src/assets/products/poignees_vtt.png',
+    image: '/bicyclehouse/products/poignees_vtt.png',
     images: [
-      '/bicyclehouse/src/assets/products/poignees_vtt.png',
-      '/bicyclehouse/src/assets/products/guidon_vtt.png'
+      '/bicyclehouse/products/poignees_vtt.png',
+      '/bicyclehouse/products/guidon_vtt.png'
     ],
     variants: [
       {
@@ -217,9 +217,9 @@ export const PRODUCTS = [
     isSoldOut: false,
     rating: 4.9,
     reviewsCount: 22,
-    image: '/bicyclehouse/src/assets/products/guidon_vtt.png',
+    image: '/bicyclehouse/products/guidon_vtt.png',
     images: [
-      '/bicyclehouse/src/assets/products/guidon_vtt.png'
+      '/bicyclehouse/products/guidon_vtt.png'
     ],
     description: 'Le pneu Maxxis Minion DHF est la référence pour les terrains techniques et meubles. Offre une excellente adhérence latérale et une traction optimale au freinage.'
   },
@@ -235,9 +235,9 @@ export const PRODUCTS = [
     isSoldOut: false,
     rating: 4.6,
     reviewsCount: 14,
-    image: '/bicyclehouse/src/assets/products/poignees_vtt.png',
+    image: '/bicyclehouse/products/poignees_vtt.png',
     images: [
-      '/bicyclehouse/src/assets/products/poignees_vtt.png'
+      '/bicyclehouse/products/poignees_vtt.png'
     ],
     variants: [
       {
@@ -280,7 +280,7 @@ export const MOCK_ORDERS = [
           id: 8,
           title: 'Guidon VTT Carbon PRO Wake Rise',
           price: 320,
-          image: '/bicyclehouse/src/assets/products/guidon_vtt.png',
+          image: '/bicyclehouse/products/guidon_vtt.png',
           brand: 'PIKALA DETACHEE'
         },
         quantity: 1,
@@ -308,7 +308,7 @@ export const MOCK_ORDERS = [
           id: 9,
           title: 'Selle de Vélo Selle Royal Gel Confort',
           price: 260,
-          image: '/bicyclehouse/src/assets/products/selle_velo.png',
+          image: '/bicyclehouse/products/selle_velo.png',
           brand: 'PIKALA DETACHEE'
         },
         quantity: 1,
@@ -321,7 +321,7 @@ export const MOCK_ORDERS = [
           id: 10,
           title: 'Poignées de Guidon VTT Double Lock-On',
           price: 90,
-          image: '/bicyclehouse/src/assets/products/poignees_vtt.png',
+          image: '/bicyclehouse/products/poignees_vtt.png',
           brand: 'PIKALA DETACHEE'
         },
         quantity: 2,

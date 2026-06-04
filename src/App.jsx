@@ -1368,7 +1368,7 @@ function App() {
                               alt={selectedProduct.title} 
                               className="w-100 h-100 object-fit-contain"
                               onError={(e) => {
-                                e.target.src = '/src/assets/hero.png';
+                                e.target.src = '/bicyclehouse/hero.png';
                               }}
                             />
                           );
