@@ -2,7 +2,7 @@ import React from 'react';
 import { CATEGORIES } from '../data/products';
 import { ChevronRight } from 'lucide-react';
 
-const Sidebar = ({ activeCategory, setActiveCategory, onClose }) => {
+const Sidebar = ({ activeCategory, setActiveCategory, onClose, categories = CATEGORIES }) => {
   const handleCategorySelect = (id) => {
     setActiveCategory(id);
     if (onClose) onClose(); // Close drawer if in mobile mode
@@ -14,7 +14,7 @@ const Sidebar = ({ activeCategory, setActiveCategory, onClose }) => {
         Catégories
       </h5>
       <div className="d-flex flex-column gap-1">
-        {CATEGORIES.map((cat) => (
+        {categories.map((cat) => (
           <button
             key={cat.id}
             onClick={() => handleCategorySelect(cat.id)}

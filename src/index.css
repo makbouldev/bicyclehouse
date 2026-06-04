@@ -384,7 +384,7 @@ h1, h2, h3, h4, h5, h6 {
 /* Hero Boutique Banner Overlay */
 .boutique-banner {
   background-size: cover;
-  background-position: center;
+  background-position: center top;
   position: relative;
   border-radius: 0 0 16px 16px;
   overflow: hidden;
@@ -398,7 +398,7 @@ h1, h2, h3, h4, h5, h6 {
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(to right, rgba(0,0,0,0.65), rgba(0,0,0,0.2));
+  background: rgba(0, 0, 0, 0.45);
   z-index: 1;
 }
 
@@ -508,7 +508,39 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Responsive Grid Overrides */
 @media (max-width: 768px) {
+  .boutique-banner {
+    min-height: 190px !important;
+  }
   .boutique-banner-content {
     padding: 2.5rem 1rem;
   }
 }
+
+@media (max-width: 576px) {
+  .product-card-body {
+    padding: 0.75rem;
+  }
+  .product-title {
+    font-size: 0.8rem;
+    height: 2.2rem;
+  }
+  .price-current {
+    font-size: 0.95rem;
+  }
+  .price-old {
+    font-size: 0.75rem;
+  }
+  .badge-discount, .badge-soldout {
+    font-size: 0.65rem;
+    padding: 0.15rem 0.35rem;
+    top: 8px;
+    left: 8px;
+  }
+  .badge-soldout {
+    top: 32px;
+  }
+  .product-card .image-container {
+    padding-top: 100%;
+  }
+}
+

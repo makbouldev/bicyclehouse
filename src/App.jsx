@@ -35,9 +35,10 @@ import HeroBanner from './components/HeroBanner';
 import Sidebar from './components/Sidebar';
 import Toolbar from './components/Toolbar';
 import ProductGrid from './components/ProductGrid';
+import AdminDashboard from './components/AdminDashboard';
 
 // Import mock data
-import { PRODUCTS, CATEGORIES } from './data/products';
+import { PRODUCTS, CATEGORIES, MOCK_ORDERS } from './data/products';
 
 const slugify = (text) => {
   return text
@@ -55,6 +56,43 @@ function App() {
   // Navigation & Page State
   const [currentView, setView] = useState('shop'); // 'shop', 'checkout', 'blog', 'about', 'contact', 'faqs'
   
+  // Local Database States (backed by localStorage)
+  const [products, setProducts] = useState(() => {
+    const saved = localStorage.getItem('bh_products');
+    return saved ? JSON.parse(saved) : PRODUCTS;
+  });
+
+  const [orders, setOrders] = useState(() => {
+    const saved = localStorage.getItem('bh_orders');
+    return saved ? JSON.parse(saved) : MOCK_ORDERS;
+  });
+
+  // Admin Authentication State (tab-session persistent)
+  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(() => {
+    return sessionStorage.getItem('bh_admin_logged') === 'true';
+  });
+
+  // Persist products to localStorage
+  useEffect(() => {
+    localStorage.setItem('bh_products', JSON.stringify(products));
+  }, [products]);
+
+  // Persist orders to localStorage
+  useEffect(() => {
+    localStorage.setItem('bh_orders', JSON.stringify(orders));
+  }, [orders]);
+
+  // Compute dynamic category counts
+  const dynamicCategories = [
+    { id: 'all', name: 'Toutes les catégories', count: products.length },
+    { id: 'les-pneu', name: 'les pneu', count: products.filter(p => p.category === 'les-pneu').length },
+    { id: 'les-gidon', name: 'les gidon', count: products.filter(p => p.category === 'les-gidon').length },
+    { id: 'les-selle', name: 'les selle', count: products.filter(p => p.category === 'les-selle').length },
+    { id: 'les-potonce', name: 'les potonce', count: products.filter(p => p.category === 'les-potonce').length },
+    { id: 'les-frein', name: 'les frein', count: products.filter(p => p.category === 'les-frein').length },
+    { id: 'les-accesoires', name: 'les accesoires', count: products.filter(p => p.category === 'les-accesoires').length }
+  ];
+
   // Filtering & Catalog State
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('all');
@@ -70,6 +108,23 @@ function App() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [selectedVariants, setSelectedVariants] = useState({});
+
+  // Reset active image index and initialize variants when selected product changes
+  useEffect(() => {
+    setActiveImageIndex(0);
+    if (selectedProduct && selectedProduct.variants) {
+      const initial = {};
+      selectedProduct.variants.forEach((v) => {
+        const firstOpt = v.options[0];
+        initial[v.name] = firstOpt.hasOwnProperty('value') ? firstOpt.value : firstOpt;
+      });
+      setSelectedVariants(initial);
+    } else {
+      setSelectedVariants({});
+    }
+  }, [selectedProduct]);
   
   // Toast notifications
   const [toast, setToast] = useState(null);
@@ -107,7 +162,7 @@ function App() {
     const params = new URLSearchParams(window.location.search);
     const productSlug = params.get('product');
     if (productSlug) {
-      const prod = PRODUCTS.find(p => slugify(p.title) === productSlug);
+      const prod = products.find(p => slugify(p.title) === productSlug);
       if (prod) {
         setSelectedProduct(prod);
       }
@@ -117,7 +172,7 @@ function App() {
       const currentParams = new URLSearchParams(window.location.search);
       const currentProductSlug = currentParams.get('product');
       if (currentProductSlug) {
-        const prod = PRODUCTS.find(p => slugify(p.title) === currentProductSlug);
+        const prod = products.find(p => slugify(p.title) === currentProductSlug);
         setSelectedProduct(prod || null);
       } else {
         setSelectedProduct(null);
@@ -125,7 +180,7 @@ function App() {
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
+  }, [products]);
 
   // Sync selectedProduct state changes with the URL search parameters (?product=slug)
   useEffect(() => {
@@ -158,32 +213,55 @@ function App() {
   };
 
   // Cart Operations
-  const handleAddToCart = (product) => {
+  const handleAddToCart = (product, variants = {}) => {
     if (product.isSoldOut) {
       showToast('Désolé, ce produit est épuisé !', 'danger');
       return;
     }
+
+    // Default variants if none selected (e.g. from shop grid directly)
+    const defaultVariants = {};
+    if (product.variants) {
+      product.variants.forEach((v) => {
+        const firstOpt = v.options[0];
+        defaultVariants[v.name] = firstOpt.hasOwnProperty('value') ? firstOpt.value : firstOpt;
+      });
+    }
+    const finalVariants = Object.keys(variants).length > 0 ? variants : defaultVariants;
     
     setCart((prevCart) => {
-      const existingItem = prevCart.find((item) => item.product.id === product.id);
+      const existingItem = prevCart.find((item) => {
+        if (item.product.id !== product.id) return false;
+        const itemVars = item.selectedVariants || {};
+        return Object.entries(finalVariants).every(([key, value]) => itemVars[key] === value);
+      });
+
       if (existingItem) {
         showToast(`Quantité augmentée pour ${product.title}`);
-        return prevCart.map((item) => 
-          item.product.id === product.id 
+        return prevCart.map((item) => {
+          const itemVars = item.selectedVariants || {};
+          const isMatch = item.product.id === product.id && 
+            Object.entries(finalVariants).every(([key, value]) => itemVars[key] === value);
+          
+          return isMatch 
             ? { ...item, quantity: item.quantity + 1 }
-            : item
-        );
+            : item;
+        });
       } else {
         showToast(`Ajouté au panier : ${product.title}`);
-        return [...prevCart, { product, quantity: 1 }];
+        return [...prevCart, { product, quantity: 1, selectedVariants: finalVariants }];
       }
     });
   };
 
-  const handleUpdateQty = (productId, delta) => {
+  const handleUpdateQty = (productId, delta, selectedVariants = {}) => {
     setCart((prevCart) => {
       return prevCart.map((item) => {
-        if (item.product.id === productId) {
+        const itemVars = item.selectedVariants || {};
+        const isMatch = item.product.id === productId && 
+          Object.entries(selectedVariants).every(([key, value]) => itemVars[key] === value);
+        
+        if (isMatch) {
           const newQty = item.quantity + delta;
           return newQty > 0 ? { ...item, quantity: newQty } : null;
         }
@@ -192,13 +270,22 @@ function App() {
     });
   };
 
-  const handleRemoveFromCart = (productId) => {
+  const handleRemoveFromCart = (productId, selectedVariants = {}) => {
     setCart((prevCart) => {
-      const itemToRemove = prevCart.find((item) => item.product.id === productId);
+      const itemToRemove = prevCart.find((item) => {
+        const itemVars = item.selectedVariants || {};
+        return item.product.id === productId && 
+          Object.entries(selectedVariants).every(([key, value]) => itemVars[key] === value);
+      });
       if (itemToRemove) {
         showToast(`Retiré du panier : ${itemToRemove.product.title}`, 'warning');
       }
-      return prevCart.filter((item) => item.product.id !== productId);
+      return prevCart.filter((item) => {
+        const itemVars = item.selectedVariants || {};
+        const isMatch = item.product.id === productId && 
+          Object.entries(selectedVariants).every(([key, value]) => itemVars[key] === value);
+        return !isMatch;
+      });
     });
   };
 
@@ -212,7 +299,7 @@ function App() {
 
   // Filter & Sort Products
   const getFilteredProducts = () => {
-    let result = [...PRODUCTS];
+    let result = [...products];
 
     // Search query filter (checks title, brand, category)
     if (searchQuery.trim() !== '') {
@@ -258,6 +345,43 @@ function App() {
       showToast('Votre panier est vide', 'danger');
       return;
     }
+
+    const getFrenchDate = () => {
+      const date = new Date();
+      const months = ['Janv', 'Févr', 'Mars', 'Avril', 'Mai', 'Juin', 'Juil', 'Août', 'Sept', 'Oct', 'Nov', 'Déc'];
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = months[date.getMonth()];
+      const year = date.getFullYear();
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      return `${day} ${month} ${year}, ${hours}:${minutes}`;
+    };
+
+    const newOrder = {
+      id: Date.now(),
+      date: getFrenchDate(),
+      customer: {
+        fullName: checkoutForm.fullName,
+        phone: checkoutForm.phone,
+        city: checkoutForm.city,
+        address: checkoutForm.address
+      },
+      items: cart.map(item => ({
+        product: {
+          id: item.product.id,
+          title: item.product.title,
+          price: item.product.price,
+          image: item.product.image,
+          brand: item.product.brand
+        },
+        quantity: item.quantity,
+        selectedVariants: item.selectedVariants
+      })),
+      total: cartTotal + (cartTotal >= 600 ? 0 : 35),
+      status: 'En attente'
+    };
+
+    setOrders(prev => [newOrder, ...prev]);
 
     // Process to Step 3 (Success)
     setCheckoutStep(3);
@@ -386,15 +510,27 @@ function App() {
         
         {/* CONDITIONAL ROUTING FOR VIEWS */}
         
+        {/* Admin Dashboard view */}
+        {currentView === 'admin' && (
+          <AdminDashboard 
+            products={products}
+            setProducts={setProducts}
+            orders={orders}
+            setOrders={setOrders}
+            isAdminLoggedIn={isAdminLoggedIn}
+            setIsAdminLoggedIn={setIsAdminLoggedIn}
+          />
+        )}
+        
         {/* 1. SHOP VIEW */}
         {currentView === 'shop' && (
           <div>
-            <HeroBanner activeCategory={activeCategory} setActiveCategory={setActiveCategory} />
+            <HeroBanner activeCategory={activeCategory} setActiveCategory={setActiveCategory} categories={dynamicCategories} />
             
             <div className="row g-4 mt-2">
               {/* Sidebar Filters */}
               <div className="col-lg-3 d-none d-lg-block">
-                <Sidebar activeCategory={activeCategory} setActiveCategory={setActiveCategory} />
+                <Sidebar activeCategory={activeCategory} setActiveCategory={setActiveCategory} categories={dynamicCategories} />
               </div>
 
               {/* Mobile Sidebar Modal */}
@@ -417,6 +553,7 @@ function App() {
                       activeCategory={activeCategory} 
                       setActiveCategory={setActiveCategory} 
                       onClose={() => setMobileSidebarOpen(false)}
+                      categories={dynamicCategories}
                     />
                   </div>
                 </div>
@@ -503,8 +640,8 @@ function App() {
                             </tr>
                           </thead>
                           <tbody>
-                            {cart.map((item) => (
-                              <tr key={item.product.id} className="border-bottom">
+                            {cart.map((item, idx) => (
+                              <tr key={`${item.product.id}-${idx}`} className="border-bottom">
                                 <td>
                                   <div className="d-flex align-items-center gap-3 py-2">
                                     <div className="border rounded p-1" style={{ width: '50px', height: '50px', flexShrink: 0 }}>
@@ -518,6 +655,15 @@ function App() {
                                       <h6 className="mb-0 fw-semibold text-truncate" style={{ maxWidth: '200px' }} title={item.product.title}>
                                         {item.product.title}
                                       </h6>
+                                      {item.selectedVariants && Object.keys(item.selectedVariants).length > 0 && (
+                                        <div className="text-muted" style={{ fontSize: '0.72rem', lineHeight: '1.2' }}>
+                                          {Object.entries(item.selectedVariants).map(([key, val]) => (
+                                            <span key={key} className="me-2 d-inline-block">
+                                              <strong>{key}:</strong> {val}
+                                            </span>
+                                          ))}
+                                        </div>
+                                      )}
                                       <small className="text-muted text-uppercase" style={{ fontSize: '0.65rem' }}>
                                         {item.product.brand}
                                       </small>
@@ -528,14 +674,14 @@ function App() {
                                 <td>
                                   <div className="d-flex justify-content-center align-items-center gap-2">
                                     <button 
-                                      onClick={() => handleUpdateQty(item.product.id, -1)}
+                                      onClick={() => handleUpdateQty(item.product.id, -1, item.selectedVariants)}
                                       className="btn btn-outline-secondary btn-sm p-1 rounded-circle d-flex"
                                     >
                                       <Minus size={12} />
                                     </button>
                                     <span className="fw-bold px-2">{item.quantity}</span>
                                     <button 
-                                      onClick={() => handleUpdateQty(item.product.id, 1)}
+                                      onClick={() => handleUpdateQty(item.product.id, 1, item.selectedVariants)}
                                       className="btn btn-outline-secondary btn-sm p-1 rounded-circle d-flex"
                                     >
                                       <Plus size={12} />
@@ -545,7 +691,7 @@ function App() {
                                 <td className="text-end fw-semibold">{item.product.price * item.quantity} DH</td>
                                 <td className="text-end">
                                   <button 
-                                    onClick={() => handleRemoveFromCart(item.product.id)}
+                                    onClick={() => handleRemoveFromCart(item.product.id, item.selectedVariants)}
                                     className="btn btn-link text-muted p-0"
                                   >
                                     <Trash2 size={16} />
@@ -679,14 +825,23 @@ function App() {
                       <h4 className="fw-bold mb-4">Votre Commande</h4>
                       
                       <div className="max-h-200 overflow-y-auto mb-3">
-                        {cart.map((item) => (
-                          <div key={item.product.id} className="d-flex align-items-center justify-content-between mb-3 text-start">
+                        {cart.map((item, idx) => (
+                          <div key={`${item.product.id}-${idx}`} className="d-flex align-items-center justify-content-between mb-3 text-start">
                             <div className="d-flex align-items-center gap-2.5">
                               <div className="border rounded p-0.5" style={{ width: '36px', height: '36px', flexShrink: 0 }}>
                                 <img src={item.product.image} alt={item.product.title} className="w-100 h-100 object-fit-contain" />
                               </div>
                               <div>
                                 <div className="small fw-bold text-truncate" style={{ maxWidth: '160px' }}>{item.product.title}</div>
+                                {item.selectedVariants && Object.keys(item.selectedVariants).length > 0 && (
+                                  <div className="text-muted" style={{ fontSize: '0.65rem', lineHeight: '1.2' }}>
+                                    {Object.entries(item.selectedVariants).map(([key, val]) => (
+                                      <span key={key} className="me-1.5 d-inline-block">
+                                        {key}: {val}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
                                 <small className="text-muted">{item.quantity} x {item.product.price} DH</small>
                               </div>
                             </div>
@@ -1081,32 +1236,41 @@ function App() {
             <>
               {/* Cart items list */}
               <div className="flex-grow-1 overflow-y-auto pe-1" style={{ maxHeight: 'calc(100vh - 320px)' }}>
-                {cart.map((item) => (
-                  <div key={item.product.id} className="cart-item">
+                {cart.map((item, idx) => (
+                  <div key={`${item.product.id}-${idx}`} className="cart-item">
                     <div className="border rounded p-1" style={{ width: '64px', height: '64px', flexShrink: 0 }}>
                       <img src={item.product.image} alt={item.product.title} className="w-100 h-100 object-fit-contain" />
                     </div>
                     <div className="cart-item-details">
                       <div className="cart-item-title" title={item.product.title}>{item.product.title}</div>
+                      {item.selectedVariants && Object.keys(item.selectedVariants).length > 0 && (
+                        <div className="text-muted mb-1" style={{ fontSize: '0.72rem', lineHeight: '1.2' }}>
+                          {Object.entries(item.selectedVariants).map(([key, val]) => (
+                            <span key={key} className="me-2 d-inline-block">
+                              <strong>{key}:</strong> {val}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                       <div className="fw-bold text-orange" style={{ fontSize: '0.85rem' }}>{item.product.price} DH</div>
                       
                       <div className="cart-item-qty">
                         <button 
-                          onClick={() => handleUpdateQty(item.product.id, -1)}
+                          onClick={() => handleUpdateQty(item.product.id, -1, item.selectedVariants)}
                           className="qty-btn"
                         >
                           <Minus size={10} />
                         </button>
                         <span className="small fw-bold px-1">{item.quantity}</span>
                         <button 
-                          onClick={() => handleUpdateQty(item.product.id, 1)}
+                          onClick={() => handleUpdateQty(item.product.id, 1, item.selectedVariants)}
                           className="qty-btn"
                         >
                           <Plus size={10} />
                         </button>
-
+ 
                         <button 
-                          onClick={() => handleRemoveFromCart(item.product.id)}
+                          onClick={() => handleRemoveFromCart(item.product.id, item.selectedVariants)}
                           className="btn btn-link text-danger p-0 ms-auto text-decoration-none"
                           style={{ fontSize: '0.72rem' }}
                         >
@@ -1190,24 +1354,48 @@ function App() {
               </div>
               <div className="modal-body p-4 text-start">
                 <div className="row g-4">
-                  {/* Left Column: Image/Fallback SVG */}
-                  <div className="col-md-5 d-flex align-items-center justify-content-center border rounded-3 p-4 bg-white" style={{ minHeight: '280px' }}>
-                    <div style={{ width: '100%', height: '240px', position: 'relative' }}>
-                      <img 
-                        src={selectedProduct.image} 
-                        alt={selectedProduct.title} 
-                        className="w-100 h-100 object-fit-contain"
-                        onError={(e) => {
-                          e.target.style.display = 'none';
-                        }}
-                      />
-                      {/* SVG Fallback overlay */}
-                      <div className="w-100 h-100 d-flex align-items-center justify-content-center opacity-75">
-                        {selectedProduct.category === 'entretien-velo' && <HelpCircle size={64} className="text-danger" />}
-                        {selectedProduct.category === 'accessoires' && <ShoppingBag size={64} className="text-secondary" />}
-                        {selectedProduct.category === 'pieces-detachees' && <Clock size={64} className="text-success" />}
+                  {/* Left Column: Image Gallery */}
+                  <div className="col-md-5 d-flex flex-column gap-3">
+                    <div className="d-flex align-items-center justify-content-center border rounded-3 p-4 bg-white" style={{ minHeight: '280px' }}>
+                      <div style={{ width: '100%', height: '240px', position: 'relative' }}>
+                        {(() => {
+                          const currentImg = (selectedProduct.images && selectedProduct.images.length > 0)
+                            ? selectedProduct.images[activeImageIndex]
+                            : selectedProduct.image;
+                          return (
+                            <img 
+                              src={currentImg} 
+                              alt={selectedProduct.title} 
+                              className="w-100 h-100 object-fit-contain"
+                              onError={(e) => {
+                                e.target.src = '/src/assets/hero.png';
+                              }}
+                            />
+                          );
+                        })()}
                       </div>
                     </div>
+                    {/* Thumbnails row */}
+                    {selectedProduct.images && selectedProduct.images.length > 1 && (
+                      <div className="d-flex gap-2 justify-content-center flex-wrap">
+                        {selectedProduct.images.map((img, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => setActiveImageIndex(idx)}
+                            className="btn p-0 border rounded overflow-hidden"
+                            style={{ 
+                              width: '55px', 
+                              height: '55px',
+                              border: activeImageIndex === idx ? '2px solid var(--pk-orange)' : '1px solid var(--pk-border-color)',
+                              boxShadow: activeImageIndex === idx ? '0 0 0 2px rgba(255, 124, 21, 0.2)' : 'none',
+                              transition: 'var(--pk-transition)'
+                            }}
+                          >
+                            <img src={img} alt="" className="w-100 h-100 object-fit-contain p-1" />
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   {/* Right Column: details info */}
@@ -1264,11 +1452,77 @@ function App() {
                       </div>
                     </div>
 
+                    {/* Variant Selector */}
+                    {selectedProduct.variants && selectedProduct.variants.length > 0 && (
+                      <div className="mb-4 text-start">
+                        {selectedProduct.variants.map((v) => (
+                          <div key={v.name} className="mb-3">
+                            <label className="form-label small fw-bold text-uppercase text-muted mb-2">
+                              {v.name} : <span className="text-dark fw-bold">{selectedVariants[v.name]}</span>
+                            </label>
+                            {v.type === 'color' ? (
+                              <div className="d-flex gap-2.5 align-items-center">
+                                {v.options.map((opt) => {
+                                  const val = opt.value || opt;
+                                  const isActive = selectedVariants[v.name] === val;
+                                  return (
+                                    <button
+                                      key={val}
+                                      type="button"
+                                      onClick={() => setSelectedVariants(prev => ({ ...prev, [v.name]: val }))}
+                                      className="rounded-circle border-0 d-flex align-items-center justify-content-center"
+                                      style={{
+                                        width: '32px',
+                                        height: '32px',
+                                        backgroundColor: opt.code || '#ccc',
+                                        border: isActive ? '3px solid var(--pk-orange)' : '1px solid rgba(0,0,0,0.15)',
+                                        outline: isActive ? '2px solid rgba(255, 124, 21, 0.25)' : 'none',
+                                        boxShadow: isActive ? 'inset 0 0 0 2px white' : 'none',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1)'
+                                      }}
+                                      title={val}
+                                    />
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <div className="d-flex flex-wrap gap-2">
+                                {v.options.map((opt) => {
+                                  const val = opt.value || opt;
+                                  const isActive = selectedVariants[v.name] === val;
+                                  return (
+                                    <button
+                                      key={val}
+                                      type="button"
+                                      onClick={() => setSelectedVariants(prev => ({ ...prev, [v.name]: val }))}
+                                      className={`btn btn-sm rounded-pill px-3 py-1.5 fw-semibold ${
+                                        isActive 
+                                          ? 'btn-dark' 
+                                          : 'btn-outline-secondary'
+                                      }`}
+                                      style={{
+                                        fontSize: '0.78rem',
+                                        border: isActive ? '1.5px solid var(--pk-black)' : '1px solid var(--pk-border-color)',
+                                        transition: 'all 0.15s ease'
+                                      }}
+                                    >
+                                      {val}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
                     {/* Actions panel */}
                     <div className="mt-auto d-flex flex-wrap gap-3">
                       <button 
                         onClick={() => {
-                          handleAddToCart(selectedProduct);
+                          handleAddToCart(selectedProduct, selectedVariants);
                           setSelectedProduct(null);
                           setCartOpen(true);
                         }}
@@ -1286,7 +1540,7 @@ function App() {
                 <div className="mt-5 border-top pt-4">
                   <h5 className="fw-bold mb-3">Produits Similaires</h5>
                   <div className="row g-3">
-                    {PRODUCTS
+                    {products
                       .filter(p => p.category === selectedProduct.category && p.id !== selectedProduct.id)
                       .slice(0, 3)
                       .map((prod) => (
@@ -1375,10 +1629,11 @@ function App() {
             <div className="col-md-2.5 col-6 text-start">
               <h6 className="fw-bold text-uppercase mb-3 small" style={{ letterSpacing: '0.5px' }}>Boutique</h6>
               <ul className="list-unstyled d-flex flex-column gap-2" style={{ fontSize: '0.8rem' }}>
-                <li><button onClick={() => { setView('shop'); setActiveCategory('pieces-detachees'); }} className="btn btn-link p-0 text-muted text-decoration-none">Pièces Détachées</button></li>
-                <li><button onClick={() => { setView('shop'); setActiveCategory('accessoires'); }} className="btn btn-link p-0 text-muted text-decoration-none">Accessoires</button></li>
-                <li><button onClick={() => { setView('shop'); setActiveCategory('entretien-velo'); }} className="btn btn-link p-0 text-muted text-decoration-none">Produits d'Entretien</button></li>
-                <li><button onClick={() => { setView('shop'); setActiveCategory('all'); }} className="btn btn-link p-0 text-muted text-decoration-none">Toutes les pièces</button></li>
+                <li><button onClick={() => { setView('shop'); setActiveCategory('les-frein'); }} className="btn btn-link p-0 text-muted text-decoration-none">Freins</button></li>
+                <li><button onClick={() => { setView('shop'); setActiveCategory('les-gidon'); }} className="btn btn-link p-0 text-muted text-decoration-none">Guidons</button></li>
+                <li><button onClick={() => { setView('shop'); setActiveCategory('les-selle'); }} className="btn btn-link p-0 text-muted text-decoration-none">Selles</button></li>
+                <li><button onClick={() => { setView('shop'); setActiveCategory('les-accesoires'); }} className="btn btn-link p-0 text-muted text-decoration-none">Accessoires</button></li>
+                <li><button onClick={() => { setView('shop'); setActiveCategory('all'); }} className="btn btn-link p-0 text-muted text-decoration-none">Toutes les catégories</button></li>
               </ul>
             </div>
 
@@ -1389,6 +1644,14 @@ function App() {
                 <li><button onClick={() => setView('about')} className="btn btn-link p-0 text-muted text-decoration-none">À Propos</button></li>
                 <li><button onClick={() => setView('faqs')} className="btn btn-link p-0 text-muted text-decoration-none">FAQs / Livraison</button></li>
                 <li><button onClick={() => setView('contact')} className="btn btn-link p-0 text-muted text-decoration-none">Contactez-Nous</button></li>
+                <li>
+                  <button 
+                    onClick={() => setView('admin')} 
+                    className="btn btn-link p-0 text-orange fw-bold text-decoration-none mt-2 d-flex align-items-center gap-1"
+                  >
+                    <span>🔑 Espace Admin</span>
+                  </button>
+                </li>
               </ul>
             </div>
 

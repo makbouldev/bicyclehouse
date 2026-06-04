@@ -23,7 +23,7 @@ const ProductGrid = ({
 
   return (
     <div>
-      <div className={viewMode === 'grid' ? "row row-cols-1 row-cols-sm-2 row-cols-md-2 row-cols-xl-3 g-4" : "d-flex flex-column"}>
+      <div className={viewMode === 'grid' ? "row row-cols-2 row-cols-sm-2 row-cols-md-2 row-cols-xl-3 g-2 g-md-4" : "d-flex flex-column"}>
         {paginatedProducts.map((product) => (
           <div key={product.id} className={viewMode === 'grid' ? "col" : ""}>
             <ProductCard

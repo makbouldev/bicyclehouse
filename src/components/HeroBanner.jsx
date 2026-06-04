@@ -3,13 +3,13 @@ import bannerImg from '../assets/boutique_banner.png';
 import { CATEGORIES } from '../data/products';
 import { Folder } from 'lucide-react';
 
-const HeroBanner = ({ activeCategory, setActiveCategory }) => {
+const HeroBanner = ({ activeCategory, setActiveCategory, categories = CATEGORIES }) => {
   return (
     <div 
       className="boutique-banner text-start border-0 shadow-sm"
       style={{ 
         backgroundImage: `url(${bannerImg})`,
-        minHeight: '220px'
+        minHeight: '260px'
       }}
     >
       <div className="boutique-banner-content d-flex flex-column justify-content-center h-100">
@@ -19,7 +19,7 @@ const HeroBanner = ({ activeCategory, setActiveCategory }) => {
         
         {/* Desktop category horizontal links */}
         <div className="d-none d-lg-flex flex-wrap align-items-center gap-4 mt-3">
-          {CATEGORIES.map((cat) => {
+          {categories.map((cat) => {
             if (cat.id === 'all') return null; // Don't show "Toutes les catégories" in the banner list
             return (
               <button
@@ -43,7 +43,7 @@ const HeroBanner = ({ activeCategory, setActiveCategory }) => {
         <div className="d-flex d-lg-none align-items-center gap-2 mt-2 bg-white bg-opacity-20 backdrop-blur rounded-3 p-2.5" style={{ width: 'fit-content', border: '1px solid rgba(255,255,255,0.15)' }}>
           <Folder size={18} className="text-white" />
           <span className="text-white fw-bold" style={{ fontSize: '0.85rem' }}>
-            {CATEGORIES.find(c => c.id === activeCategory)?.name || 'Catégories'}
+            {categories.find(c => c.id === activeCategory)?.name || 'Catégories'}
           </span>
         </div>
       </div>
