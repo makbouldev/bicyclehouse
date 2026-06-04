@@ -157,30 +157,44 @@ function App() {
     }
   }, [toast]);
 
-  // On mount: Check URL for product parameter and set initial modal state + popstate listener
+  // On mount and popstate: Check URL for page and product parameters
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const productSlug = params.get('product');
-    if (productSlug) {
-      const prod = products.find(p => slugify(p.title) === productSlug);
-      if (prod) {
-        setSelectedProduct(prod);
-      }
-    }
+    const handleUrlRouting = () => {
+      const params = new URLSearchParams(window.location.search);
+      
+      const page = params.get('page') || 'shop';
+      setView(page);
 
-    const handlePopState = () => {
-      const currentParams = new URLSearchParams(window.location.search);
-      const currentProductSlug = currentParams.get('product');
-      if (currentProductSlug) {
-        const prod = products.find(p => slugify(p.title) === currentProductSlug);
+      const productSlug = params.get('product');
+      if (productSlug) {
+        const prod = products.find(p => slugify(p.title) === productSlug);
         setSelectedProduct(prod || null);
       } else {
         setSelectedProduct(null);
       }
     };
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
+
+    handleUrlRouting();
+
+    window.addEventListener('popstate', handleUrlRouting);
+    return () => window.removeEventListener('popstate', handleUrlRouting);
   }, [products]);
+
+  // Sync currentView state changes with the URL search parameters (?page=view)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const currentPage = params.get('page') || 'shop';
+
+    if (currentView !== currentPage) {
+      const url = new URL(window.location);
+      if (currentView === 'shop') {
+        url.searchParams.delete('page');
+      } else {
+        url.searchParams.set('page', currentView);
+      }
+      window.history.pushState({}, '', url);
+    }
+  }, [currentView]);
 
   // Sync selectedProduct state changes with the URL search parameters (?product=slug)
   useEffect(() => {
