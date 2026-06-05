@@ -38,6 +38,10 @@ import ProductGrid from './components/ProductGrid';
 // Import mock data
 import { PRODUCTS, CATEGORIES, MOCK_ORDERS } from './data/products';
 
+// Import Firebase database config
+import { db, isFirebaseConfigured } from './firebase';
+import { collection, doc, onSnapshot, setDoc } from 'firebase/firestore';
+
 const slugify = (text) => {
   return text
     .toString()
@@ -54,41 +58,143 @@ function App() {
   // Navigation & Page State
   const [currentView, setView] = useState('shop'); // 'shop', 'checkout', 'blog', 'about', 'contact', 'faqs'
   
-  // Local Database States (backed by localStorage)
-  const [products, setProducts] = useState(() => {
-    const saved = localStorage.getItem('bh_products');
-    return saved ? JSON.parse(saved) : PRODUCTS;
-  });
-
-  const [orders, setOrders] = useState(() => {
-    const saved = localStorage.getItem('bh_orders');
-    return saved ? JSON.parse(saved) : MOCK_ORDERS;
-  });
+  // Data Loading and Synchronization State
+  const [products, setProducts] = useState([]);
+  const [orders, setOrders] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [isDataLoading, setIsDataLoading] = useState(isFirebaseConfigured);
 
   // Admin Authentication State (tab-session persistent)
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(() => {
     return sessionStorage.getItem('bh_admin_logged') === 'true';
   });
 
-  // Persist products to localStorage
+  // Sync state data from Firestore or LocalStorage
   useEffect(() => {
-    localStorage.setItem('bh_products', JSON.stringify(products));
+    if (!isFirebaseConfigured) {
+      // LocalStorage mode fallback
+      const savedProducts = localStorage.getItem('bh_products');
+      setProducts(savedProducts ? JSON.parse(savedProducts) : PRODUCTS);
+
+      const savedOrders = localStorage.getItem('bh_orders');
+      setOrders(savedOrders ? JSON.parse(savedOrders) : MOCK_ORDERS);
+
+      const savedCategories = localStorage.getItem('bh_categories');
+      setCategories(savedCategories ? JSON.parse(savedCategories) : [
+        { id: 'les-pneu', name: 'les pneu' },
+        { id: 'les-gidon', name: 'les gidon' },
+        { id: 'les-selle', name: 'les selle' },
+        { id: 'les-potonce', name: 'les potonce' },
+        { id: 'les-frein', name: 'les frein' },
+        { id: 'les-accesoires', name: 'les accesoires' }
+      ]);
+      return;
+    }
+
+    // Firebase Firestore mode active
+    setIsDataLoading(true);
+
+    // 1. Sync Categories with Seeding
+    const unsubCategories = onSnapshot(collection(db, 'categories'), async (snapshot) => {
+      let catsList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+      if (snapshot.empty) {
+        console.log("Firestore categories are empty. Seeding defaults...");
+        const defaultCats = [
+          { id: 'les-pneu', name: 'les pneu' },
+          { id: 'les-gidon', name: 'les gidon' },
+          { id: 'les-selle', name: 'les selle' },
+          { id: 'les-potonce', name: 'les potonce' },
+          { id: 'les-frein', name: 'les frein' },
+          { id: 'les-accesoires', name: 'les accesoires' }
+        ];
+
+        // Seed Categories
+        for (const cat of defaultCats) {
+          await setDoc(doc(db, 'categories', cat.id), { name: cat.name });
+        }
+
+        // Seed Products
+        for (const prod of PRODUCTS) {
+          await setDoc(doc(db, 'products', prod.id.toString()), {
+            title: prod.title,
+            brand: prod.brand,
+            category: prod.category,
+            categoryLabel: prod.categoryLabel,
+            price: prod.price,
+            oldPrice: prod.oldPrice,
+            discount: prod.discount,
+            image: prod.image,
+            images: prod.images || [prod.image],
+            description: prod.description || '',
+            isSoldOut: prod.isSoldOut || false,
+            rating: prod.rating || 5.0,
+            reviewsCount: prod.reviewsCount || 0,
+            variants: prod.variants || null
+          });
+        }
+
+        // Seed Mock Orders
+        for (const order of MOCK_ORDERS) {
+          await setDoc(doc(db, 'orders', order.id.toString()), order);
+        }
+
+        console.log("Seeding complete!");
+      } else {
+        setCategories(catsList);
+      }
+    });
+
+    // 2. Sync Products
+    const unsubProducts = onSnapshot(collection(db, 'products'), (snapshot) => {
+      if (!snapshot.empty) {
+        const prodsList = snapshot.docs.map(doc => ({ id: isNaN(doc.id) ? doc.id : Number(doc.id), ...doc.data() }));
+        setProducts(prodsList);
+      }
+    });
+
+    // 3. Sync Orders
+    const unsubOrders = onSnapshot(collection(db, 'orders'), (snapshot) => {
+      const ordersList = snapshot.docs.map(doc => ({ id: isNaN(doc.id) ? doc.id : Number(doc.id), ...doc.data() }));
+      ordersList.sort((a, b) => b.id - a.id);
+      setOrders(ordersList);
+      setIsDataLoading(false);
+    });
+
+    return () => {
+      unsubCategories();
+      unsubProducts();
+      unsubOrders();
+    };
+  }, []);
+
+  // Write state modifications back to local storage when in fallback mode
+  useEffect(() => {
+    if (!isFirebaseConfigured && products.length > 0) {
+      localStorage.setItem('bh_products', JSON.stringify(products));
+    }
   }, [products]);
 
-  // Persist orders to localStorage
   useEffect(() => {
-    localStorage.setItem('bh_orders', JSON.stringify(orders));
+    if (!isFirebaseConfigured && orders.length > 0) {
+      localStorage.setItem('bh_orders', JSON.stringify(orders));
+    }
   }, [orders]);
+
+  useEffect(() => {
+    if (!isFirebaseConfigured && categories.length > 0) {
+      localStorage.setItem('bh_categories', JSON.stringify(categories));
+    }
+  }, [categories]);
 
   // Compute dynamic category counts
   const dynamicCategories = [
     { id: 'all', name: 'Toutes les catégories', count: products.length },
-    { id: 'les-pneu', name: 'les pneu', count: products.filter(p => p.category === 'les-pneu').length },
-    { id: 'les-gidon', name: 'les gidon', count: products.filter(p => p.category === 'les-gidon').length },
-    { id: 'les-selle', name: 'les selle', count: products.filter(p => p.category === 'les-selle').length },
-    { id: 'les-potonce', name: 'les potonce', count: products.filter(p => p.category === 'les-potonce').length },
-    { id: 'les-frein', name: 'les frein', count: products.filter(p => p.category === 'les-frein').length },
-    { id: 'les-accesoires', name: 'les accesoires', count: products.filter(p => p.category === 'les-accesoires').length }
+    ...categories.map(cat => ({
+      id: cat.id,
+      name: cat.name,
+      count: products.filter(p => p.category === cat.id).length
+    }))
   ];
 
   // Filtering & Catalog State
@@ -399,7 +505,12 @@ function App() {
       status: 'En attente'
     };
 
-    setOrders(prev => [newOrder, ...prev]);
+    if (isFirebaseConfigured) {
+      setDoc(doc(db, 'orders', newOrder.id.toString()), newOrder)
+        .catch(err => console.error("Firestore error saving order:", err));
+    } else {
+      setOrders(prev => [newOrder, ...prev]);
+    }
 
     // Process to Step 3 (Success)
     setCheckoutStep(3);
