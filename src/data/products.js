@@ -251,6 +251,40 @@ export const PRODUCTS = [
       }
     ],
     description: 'Potence VTT ultra-légère en alliage d\'aluminium CNC. Diamètre de guidon 31.8mm, longueur 45mm. Idéale pour améliorer le contrôle et l\'agilité de votre pilotage.'
+  },
+  {
+    id: 13,
+    title: 'Gidon Wake 780 mm VTT Cintre',
+    brand: 'WAKE',
+    category: 'les-gidon',
+    categoryLabel: 'Guidons & Cintres VTT',
+    price: 100,
+    oldPrice: 120,
+    discount: 16,
+    isSoldOut: false,
+    rating: 4.8,
+    reviewsCount: 15,
+    image: '/bicyclehouse/products/gidon_wake_all.png',
+    images: [
+      '/bicyclehouse/products/gidon_wake_all.png',
+      '/bicyclehouse/products/gidon_wake_noir.png',
+      '/bicyclehouse/products/gidon_wake_rouge.png',
+      '/bicyclehouse/products/gidon_wake_bleu.png',
+      '/bicyclehouse/products/gidon_wake_or.png'
+    ],
+    variants: [
+      {
+        name: 'Couleur',
+        type: 'color',
+        options: [
+          { value: 'Noir', code: '#111111', image: '/bicyclehouse/products/gidon_wake_noir.png' },
+          { value: 'Rouge', code: '#DC3545', image: '/bicyclehouse/products/gidon_wake_rouge.png' },
+          { value: 'Bleu', code: '#0D6EFD', image: '/bicyclehouse/products/gidon_wake_bleu.png' },
+          { value: 'Or', code: '#FFD700', image: '/bicyclehouse/products/gidon_wake_or.png' }
+        ]
+      }
+    ],
+    description: 'Cintre VTT Wake Comp en alliage d\'aluminium de haute résistance. Longueur de 780mm pour un contrôle maximal, diamètre de fixation de 31.8mm. Disponible en plusieurs coloris anodisés.'
   }
 ];
 

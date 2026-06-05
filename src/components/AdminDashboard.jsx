@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   ShoppingBag, 
   DollarSign, 
@@ -24,7 +24,9 @@ import {
   Search,
   Tag,
   ArrowLeftRight,
-  Menu
+  Menu,
+  MessageSquare,
+  Mail
 } from 'lucide-react';
 
 // Import Firebase database config
@@ -38,6 +40,10 @@ const AdminDashboard = ({
   setOrders, 
   categories, 
   setCategories,
+  contacts = [],
+  setContacts,
+  adminCredentials,
+  setAdminCredentials,
   isAdminLoggedIn, 
   setIsAdminLoggedIn 
 }) => {
@@ -46,20 +52,19 @@ const AdminDashboard = ({
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
 
-  // Loaded Admin Credentials from LocalStorage
-  const [adminEmail, setAdminEmail] = useState(() => {
-    return localStorage.getItem('bh_admin_email') || 'admin@bicyclehouse.ma';
-  });
-  const [adminPassword, setAdminPassword] = useState(() => {
-    return localStorage.getItem('bh_admin_password') || 'admin123';
-  });
-
   // Security credentials change form
-  const [newEmail, setNewEmail] = useState(adminEmail);
+  const [newEmail, setNewEmail] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [securitySuccess, setSecuritySuccess] = useState('');
   const [securityError, setSecurityError] = useState('');
+
+  // Sync newEmail with loaded adminCredentials
+  useEffect(() => {
+    if (adminCredentials?.email) {
+      setNewEmail(adminCredentials.email);
+    }
+  }, [adminCredentials?.email]);
 
   // Dashboard Active Tab
   const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard', 'orders', 'products', 'categories', 'security'
@@ -83,6 +88,7 @@ const AdminDashboard = ({
   });
 
   const [uploadedImages, setUploadedImages] = useState([]);
+  const [productVariants, setProductVariants] = useState([]);
 
   // Category modal / editing state
   const [showCategoryModal, setShowCategoryModal] = useState(false);
@@ -93,9 +99,10 @@ const AdminDashboard = ({
   const [selectedCategoryMapping, setSelectedCategoryMapping] = useState(null); // category object when active
   const [mappingSearchQuery, setMappingSearchQuery] = useState('');
 
-  // Search queries for products and orders
+  // Search queries for products, orders, and messages
   const [productSearch, setProductSearch] = useState('');
   const [orderSearch, setOrderSearch] = useState('');
+  const [contactSearch, setContactSearch] = useState('');
 
   // Notification Toast State
   const [toast, setToast] = useState(null);
@@ -109,7 +116,7 @@ const AdminDashboard = ({
   // Handle Login Submission
   const handleLogin = (e) => {
     e.preventDefault();
-    if (email === adminEmail && password === adminPassword) {
+    if (email === adminCredentials.email && password === adminCredentials.password) {
       setIsAdminLoggedIn(true);
       sessionStorage.setItem('bh_admin_logged', 'true');
       setLoginError('');
@@ -142,17 +149,36 @@ const AdminDashboard = ({
         setSecurityError('Les mots de passe ne correspondent pas.');
         return;
       }
-      localStorage.setItem('bh_admin_password', newPassword);
-      setAdminPassword(newPassword);
     }
 
-    localStorage.setItem('bh_admin_email', newEmail);
-    setAdminEmail(newEmail);
-    
-    setSecuritySuccess('Identifiants admin mis à jour avec succès !');
-    setNewPassword('');
-    setConfirmPassword('');
-    showToast('Paramètres de sécurité enregistrés !');
+    const updatedCreds = {
+      email: newEmail,
+      password: newPassword || adminCredentials.password
+    };
+
+    if (isFirebaseConfigured) {
+      setDoc(doc(db, 'settings', 'admin'), updatedCreds)
+        .then(() => {
+          setSecuritySuccess('Identifiants admin mis à jour avec succès !');
+          setNewPassword('');
+          setConfirmPassword('');
+          showToast('Paramètres de sécurité enregistrés !');
+        })
+        .catch(err => {
+          setSecurityError('Erreur lors de la mise à jour des identifiants dans Firestore.');
+          console.error(err);
+        });
+    } else {
+      localStorage.setItem('bh_admin_email', newEmail);
+      if (newPassword) {
+        localStorage.setItem('bh_admin_password', newPassword);
+      }
+      setAdminCredentials(updatedCreds);
+      setSecuritySuccess('Identifiants admin mis à jour avec succès !');
+      setNewPassword('');
+      setConfirmPassword('');
+      showToast('Paramètres de sécurité enregistrés !');
+    }
   };
 
   // Order status management
@@ -217,6 +243,7 @@ const AdminDashboard = ({
     if (product) {
       setEditingProduct(product);
       setUploadedImages(product.images || (product.image ? [product.image] : []));
+      setProductVariants(product.variants ? JSON.parse(JSON.stringify(product.variants)) : []);
       setProductForm({
         title: product.title,
         brand: product.brand || 'PIKALA DETACHEE',
@@ -228,13 +255,12 @@ const AdminDashboard = ({
         image: product.image,
         description: product.description || '',
         hasVariants: !!product.variants,
-        variantsJson: product.variants 
-          ? JSON.stringify(product.variants, null, 2) 
-          : '[\n  {\n    "name": "Couleur",\n    "type": "color",\n    "options": [\n      {"value": "Noir", "code": "#111111"},\n      {"value": "Rouge", "code": "#DC3545"}\n    ]\n  }\n]'
+        variantsJson: ''
       });
     } else {
       setEditingProduct(null);
       setUploadedImages([]);
+      setProductVariants([]);
       setProductForm({
         title: '',
         brand: 'PIKALA DETACHEE',
@@ -246,7 +272,7 @@ const AdminDashboard = ({
         image: '',
         description: '',
         hasVariants: false,
-        variantsJson: '[\n  {\n    "name": "Couleur",\n    "type": "color",\n    "options": [\n      {"value": "Noir", "code": "#111111"},\n      {"value": "Rouge", "code": "#DC3545"}\n    ]\n  }\n]'
+        variantsJson: ''
       });
     }
     setShowProductModal(true);
@@ -275,6 +301,73 @@ const AdminDashboard = ({
     setUploadedImages(prev => prev.filter((_, idx) => idx !== indexToRemove));
   };
 
+  // Variant Builder Handlers
+  const handleAddVariant = () => {
+    setProductVariants(prev => [
+      ...prev,
+      {
+        name: '',
+        type: 'text',
+        options: []
+      }
+    ]);
+  };
+
+  const handleRemoveVariant = (idx) => {
+    setProductVariants(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleUpdateVariantField = (vIdx, field, value) => {
+    setProductVariants(prev => 
+      prev.map((v, i) => i === vIdx ? { ...v, [field]: value } : v)
+    );
+  };
+
+  const handleAddOption = (vIdx) => {
+    setProductVariants(prev => 
+      prev.map((v, i) => {
+        if (i === vIdx) {
+          const newOpt = { value: '', code: v.type === 'color' ? '#111111' : undefined };
+          return {
+            ...v,
+            options: [...v.options, newOpt]
+          };
+        }
+        return v;
+      })
+    );
+  };
+
+  const handleRemoveOption = (vIdx, oIdx) => {
+    setProductVariants(prev => 
+      prev.map((v, i) => {
+        if (i === vIdx) {
+          return {
+            ...v,
+            options: v.options.filter((_, oi) => oi !== oIdx)
+          };
+        }
+        return v;
+      })
+    );
+  };
+
+  const handleUpdateOptionField = (vIdx, oIdx, field, value) => {
+    setProductVariants(prev => 
+      prev.map((v, i) => {
+        if (i === vIdx) {
+          return {
+            ...v,
+            options: v.options.map((opt, oi) => 
+              oi === oIdx ? { ...opt, [field]: value === '' ? undefined : value } : opt
+            )
+          };
+        }
+        return v;
+      })
+    );
+  };
+
   // Handle Product Form Submit
   const handleProductSubmit = (e) => {
     e.preventDefault();
@@ -301,7 +394,7 @@ const AdminDashboard = ({
       isSoldOut: editingProduct ? editingProduct.isSoldOut : false,
       rating: editingProduct ? editingProduct.rating : 5.0,
       reviewsCount: editingProduct ? editingProduct.reviewsCount : 0,
-      variants: editingProduct ? editingProduct.variants : null
+      variants: productVariants.length > 0 ? productVariants : null
     };
 
     if (editingProduct) {
@@ -478,6 +571,20 @@ const AdminDashboard = ({
     }
   };
 
+  // Delete contact message
+  const handleDeleteContact = (contactId) => {
+    if (window.confirm('Êtes-vous sûr de vouloir supprimer ce message ?')) {
+      if (isFirebaseConfigured) {
+        deleteDoc(doc(db, 'contacts', contactId))
+          .then(() => showToast('Message supprimé.'))
+          .catch(err => console.error("Error deleting contact in Firestore:", err));
+      } else {
+        setContacts(prev => prev.filter(c => c.id !== contactId));
+        showToast('Message supprimé.');
+      }
+    }
+  };
+
   // Calculate statistics
   const totalRevenue = orders
     .filter(o => o.status === 'Confirmé')
@@ -647,6 +754,15 @@ const AdminDashboard = ({
               </button>
 
               <button 
+                onClick={() => { setActiveTab('messages'); setMobileMenuOpen(false); setSelectedCategoryMapping(null); }}
+                className={`btn d-flex align-items-center gap-2.5 rounded-3 py-2.5 px-3 text-start w-100 border-0 ${activeTab === 'messages' ? 'bg-orange text-white fw-bold shadow-sm' : 'btn-light text-dark'}`}
+              >
+                <MessageSquare size={18} />
+                <span>Messages Client</span>
+                <span className={`badge ms-auto ${activeTab === 'messages' ? 'bg-white text-orange' : 'bg-dark text-white'}`}>{contacts.length}</span>
+              </button>
+
+              <button 
                 onClick={() => { setActiveTab('security'); setMobileMenuOpen(false); setSelectedCategoryMapping(null); }}
                 className={`btn d-flex align-items-center gap-2.5 rounded-3 py-2.5 px-3 text-start w-100 border-0 ${activeTab === 'security' ? 'bg-orange text-white fw-bold shadow-sm' : 'btn-light text-dark'}`}
               >
@@ -735,6 +851,15 @@ const AdminDashboard = ({
               </button>
 
               <button 
+                onClick={() => { setActiveTab('messages'); setSelectedCategoryMapping(null); }}
+                className={`btn d-flex align-items-center gap-2.5 rounded-3 py-2.5 px-3 text-start w-100 border-0 ${activeTab === 'messages' ? 'bg-orange text-white fw-bold shadow-sm' : 'btn-light text-dark'}`}
+              >
+                <MessageSquare size={18} />
+                <span>Messages Client</span>
+                <span className={`badge ms-auto ${activeTab === 'messages' ? 'bg-white text-orange' : 'bg-dark text-white'}`}>{contacts.length}</span>
+              </button>
+
+              <button 
                 onClick={() => { setActiveTab('security'); setSelectedCategoryMapping(null); }}
                 className={`btn d-flex align-items-center gap-2.5 rounded-3 py-2.5 px-3 text-start w-100 border-0 ${activeTab === 'security' ? 'bg-orange text-white fw-bold shadow-sm' : 'btn-light text-dark'}`}
               >
@@ -769,7 +894,7 @@ const AdminDashboard = ({
 
               {/* Stats Counters */}
               <div className="row g-3 mb-4">
-                <div className="col-md-3 col-6">
+                <div className="col-lg col-md-4 col-6">
                   <div className="card shadow-sm border p-3 bg-white rounded-3 h-100">
                     <div className="d-flex align-items-center justify-content-between">
                       <div>
@@ -784,7 +909,7 @@ const AdminDashboard = ({
                   </div>
                 </div>
 
-                <div className="col-md-3 col-6">
+                <div className="col-lg col-md-4 col-6">
                   <div className="card shadow-sm border p-3 bg-white rounded-3 h-100">
                     <div className="d-flex align-items-center justify-content-between">
                       <div>
@@ -799,7 +924,7 @@ const AdminDashboard = ({
                   </div>
                 </div>
 
-                <div className="col-md-3 col-6">
+                <div className="col-lg col-md-4 col-6">
                   <div className="card shadow-sm border p-3 bg-white rounded-3 h-100">
                     <div className="d-flex align-items-center justify-content-between">
                       <div>
@@ -814,7 +939,7 @@ const AdminDashboard = ({
                   </div>
                 </div>
 
-                <div className="col-md-3 col-6">
+                <div className="col-lg col-md-4 col-6">
                   <div className="card shadow-sm border p-3 bg-white rounded-3 h-100">
                     <div className="d-flex align-items-center justify-content-between">
                       <div>
@@ -826,6 +951,21 @@ const AdminDashboard = ({
                       </div>
                     </div>
                     <div className="small text-muted mt-2">({products.filter(p => p.isSoldOut).length} épuisés)</div>
+                  </div>
+                </div>
+
+                <div className="col-lg col-md-4 col-6">
+                  <div className="card shadow-sm border p-3 bg-white rounded-3 h-100" onClick={() => setActiveTab('messages')} style={{ cursor: 'pointer' }}>
+                    <div className="d-flex align-items-center justify-content-between">
+                      <div>
+                        <span className="text-muted small fw-bold text-uppercase">Messages</span>
+                        <h4 className="fw-bold mt-1 mb-0" style={{ color: 'rgb(147, 51, 234)' }}>{contacts.length}</h4>
+                      </div>
+                      <div className="p-2.5 rounded-3" style={{ backgroundColor: 'rgba(147, 51, 234, 0.1)', color: 'rgb(147, 51, 234)' }}>
+                        <MessageSquare size={20} />
+                      </div>
+                    </div>
+                    <div className="small text-muted mt-2">Reçus via contact</div>
                   </div>
                 </div>
               </div>
@@ -886,6 +1026,55 @@ const AdminDashboard = ({
                       ))}
                     </tbody>
                   </table>
+                </div>
+              </div>
+
+              {/* Recent Messages Overview */}
+              <div className="card border shadow-sm rounded-4 bg-white overflow-hidden mt-4 text-start">
+                <div className="card-header bg-light border-bottom p-3 d-flex justify-content-between align-items-center">
+                  <h5 className="fw-bold m-0">Messages de Contact Récents</h5>
+                  <button onClick={() => setActiveTab('messages')} className="btn btn-outline-dark btn-sm rounded-pill px-3">Tout Voir</button>
+                </div>
+                <div className="p-3">
+                  {contacts.length === 0 ? (
+                    <div className="text-center py-4 text-muted">
+                      Aucun message reçu pour le moment.
+                    </div>
+                  ) : (
+                    <div className="d-flex flex-column gap-3">
+                      {contacts.slice(0, 3).map((msg) => (
+                        <div key={msg.id} className="p-3 rounded-3 border bg-light bg-opacity-25 d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
+                          <div className="d-flex gap-3 align-items-start">
+                            <div className="p-2 rounded-circle bg-orange bg-opacity-10 text-orange d-none d-sm-block mt-1">
+                              <MessageSquare size={18} />
+                            </div>
+                            <div>
+                              <div className="d-flex align-items-center gap-2 flex-wrap">
+                                <h6 className="fw-bold m-0">{msg.name}</h6>
+                                <span className="text-muted" style={{ fontSize: '0.8rem' }}>&lt;{msg.email}&gt;</span>
+                                <span className="badge bg-light text-dark border px-2 py-0.5" style={{ fontSize: '0.7rem' }}>{msg.date}</span>
+                              </div>
+                              <div className="fw-semibold text-dark mt-1" style={{ fontSize: '0.85rem' }}>
+                                Sujet: <span className="text-orange">{msg.subject}</span>
+                              </div>
+                              <p className="text-muted m-0 mt-1.5 text-truncate" style={{ fontSize: '0.82rem', maxWidth: '600px' }}>
+                                {msg.message}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="d-flex gap-2 align-self-end align-self-md-center">
+                            <a href={`mailto:${msg.email}?subject=Re: ${encodeURIComponent(msg.subject)}`} className="btn btn-sm btn-outline-orange rounded-pill px-2.5 d-flex align-items-center gap-1" style={{ fontSize: '0.75rem' }}>
+                              <Mail size={12} />
+                              <span>Répondre</span>
+                            </a>
+                            <button onClick={() => handleDeleteContact(msg.id)} className="btn btn-sm btn-outline-danger rounded-circle p-1.5 d-flex align-items-center justify-content-center" title="Supprimer">
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -1380,6 +1569,123 @@ const AdminDashboard = ({
               </form>
             </div>
           )}
+
+          {/* TAB 6: CONTACT MESSAGES */}
+          {activeTab === 'messages' && (
+            <div>
+              {/* Header */}
+              <div className="card shadow-sm border-0 p-4 bg-white rounded-4 mb-4 text-start">
+                <div className="d-flex align-items-center justify-content-between flex-wrap gap-3">
+                  <div>
+                    <h2 className="fw-bold text-dark m-0" style={{ fontFamily: 'var(--pk-font-heading)' }}>Messages Client</h2>
+                    <p className="text-muted mb-0 mt-1">Consultez et répondez aux messages envoyés par les clients depuis la page de contact.</p>
+                  </div>
+                  <div className="p-2.5 rounded-3 text-white" style={{ backgroundColor: 'var(--pk-orange)' }}>
+                    <MessageSquare size={24} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Filters / Search */}
+              <div className="card border shadow-sm rounded-4 bg-white p-3 mb-4">
+                <div className="row g-2 align-items-center">
+                  <div className="col-12 col-md-6 position-relative">
+                    <span className="position-absolute start-0 top-50 translate-middle-y ms-3 text-muted">
+                      <Search size={16} />
+                    </span>
+                    <input 
+                      type="text" 
+                      placeholder="Rechercher par nom, email, sujet..." 
+                      className="form-control rounded-pill ps-5"
+                      value={contactSearch}
+                      onChange={(e) => setContactSearch(e.target.value)}
+                    />
+                  </div>
+                  <div className="col-12 col-md-6 text-md-end text-muted small">
+                    Total: <strong>{contacts.length} messages</strong>
+                  </div>
+                </div>
+              </div>
+
+              {/* Messages Content */}
+              {(() => {
+                const filteredContacts = contacts.filter(c => {
+                  const term = contactSearch.toLowerCase();
+                  return (
+                    (c.name || '').toLowerCase().includes(term) ||
+                    (c.email || '').toLowerCase().includes(term) ||
+                    (c.subject || '').toLowerCase().includes(term) ||
+                    (c.message || '').toLowerCase().includes(term)
+                  );
+                });
+
+                if (filteredContacts.length === 0) {
+                  return (
+                    <div className="card border shadow-sm rounded-4 bg-white p-5 text-center">
+                      <div className="d-inline-flex bg-light text-muted rounded-circle p-3 mb-3 mx-auto">
+                        <MessageSquare size={32} />
+                      </div>
+                      <h5 className="fw-bold text-dark">Aucun message trouvé</h5>
+                      <p className="text-muted mb-0">Essayez un autre mot-clé ou attendez de nouveaux messages des clients.</p>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="row g-3">
+                    {filteredContacts.map((msg) => (
+                      <div key={msg.id} className="col-12">
+                        <div className="card border shadow-sm rounded-4 bg-white p-4 text-start h-100 transition-hover">
+                          <div className="d-flex flex-column flex-md-row justify-content-between align-items-start gap-3 border-bottom pb-3 mb-3">
+                            <div>
+                              <div className="d-flex align-items-center gap-2 flex-wrap">
+                                <div className="avatar-circle-sm bg-orange text-white fw-bold d-flex align-items-center justify-content-center rounded-circle" style={{ width: '32px', height: '32px', fontSize: '0.85rem' }}>
+                                  {(msg.name || 'C').charAt(0).toUpperCase()}
+                                </div>
+                                <h5 className="fw-bold m-0 text-dark">{msg.name}</h5>
+                                <a href={`mailto:${msg.email}`} className="text-muted text-decoration-none hover-underline small" style={{ fontSize: '0.82rem' }}>
+                                  &lt;{msg.email}&gt;
+                                </a>
+                              </div>
+                              <div className="badge bg-light text-dark border mt-2 px-2.5 py-1" style={{ fontSize: '0.75rem' }}>
+                                Sujet: <span className="text-orange fw-bold">{msg.subject}</span>
+                              </div>
+                            </div>
+                            <div className="d-flex align-items-center gap-2.5 ms-md-auto self-end-mobile">
+                              <span className="text-muted small d-flex align-items-center gap-1">
+                                <Calendar size={14} />
+                                <span>{msg.date || new Date(msg.createdAt).toLocaleString()}</span>
+                              </span>
+                              <div className="d-flex gap-2">
+                                <a 
+                                  href={`mailto:${msg.email}?subject=Re: ${encodeURIComponent(msg.subject || '')}`} 
+                                  className="btn btn-sm btn-orange rounded-pill px-3 py-1.5 d-flex align-items-center gap-1.5"
+                                  style={{ fontSize: '0.78rem' }}
+                                >
+                                  <Mail size={14} />
+                                  <span>Répondre</span>
+                                </a>
+                                <button 
+                                  onClick={() => handleDeleteContact(msg.id)} 
+                                  className="btn btn-sm btn-outline-danger rounded-circle p-1.5 d-flex align-items-center justify-content-center"
+                                  title="Supprimer"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="bg-light bg-opacity-25 rounded-3 p-3 border border-dashed text-dark" style={{ whiteSpace: 'pre-wrap', fontSize: '0.95rem', lineHeight: '1.6' }}>
+                            {msg.message}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </div>
+          )}
         </div>
       </div>
 
@@ -1539,10 +1845,8 @@ const AdminDashboard = ({
                       )}
                     </div>
 
-
-
                     {/* Description */}
-                    <div className="col-12">
+                    <div className="col-12 text-start">
                       <label className="form-label small fw-bold text-muted">Description *</label>
                       <textarea 
                         required 
@@ -1554,6 +1858,163 @@ const AdminDashboard = ({
                       />
                     </div>
 
+                    {/* Dynamic Variant Builder */}
+                    <div className="col-12 mt-4 text-start">
+                      <div className="card bg-light border p-3 rounded-3">
+                        <div className="d-flex justify-content-between align-items-center mb-3">
+                          <h6 className="fw-bold m-0 text-dark" style={{ fontSize: '0.9rem' }}>
+                            Variantes du produit (Couleurs, Tailles, Options...)
+                          </h6>
+                          <button 
+                            type="button" 
+                            onClick={handleAddVariant} 
+                            className="btn btn-sm btn-orange rounded-pill px-3 fw-semibold d-flex align-items-center gap-1"
+                          >
+                            <Plus size={14} />
+                            <span>Ajouter une variante</span>
+                          </button>
+                        </div>
+
+                        {productVariants.length === 0 ? (
+                          <div className="text-center py-4 text-muted small bg-white rounded-3 border border-dashed">
+                            Aucune variante configurée. Ce produit sera vendu en option unique.
+                          </div>
+                        ) : (
+                          <div className="d-flex flex-column gap-3">
+                            {productVariants.map((variant, vIdx) => (
+                              <div key={vIdx} className="p-3 bg-white border rounded-3 text-start position-relative animate-fade-in">
+                                {/* Remove Variant Button */}
+                                <button 
+                                  type="button" 
+                                  onClick={() => handleRemoveVariant(vIdx)}
+                                  className="btn btn-outline-danger btn-sm rounded-circle p-1 position-absolute top-0 end-0 m-2.5 d-flex align-items-center justify-content-center border"
+                                  style={{ width: '24px', height: '24px' }}
+                                  title="Supprimer la variante"
+                                >
+                                  <X size={12} />
+                                </button>
+
+                                <div className="row g-2 mb-3 pe-4">
+                                  {/* Variant Name */}
+                                  <div className="col-md-6 text-start">
+                                    <label className="form-label small fw-bold text-muted mb-1">Nom de la variante</label>
+                                    <input 
+                                      type="text" 
+                                      required 
+                                      className="form-control form-control-sm rounded-3" 
+                                      value={variant.name} 
+                                      onChange={(e) => handleUpdateVariantField(vIdx, 'name', e.target.value)}
+                                      placeholder="ex: Couleur, Taille, Modèle..."
+                                    />
+                                  </div>
+                                  {/* Variant Type */}
+                                  <div className="col-md-6 text-start">
+                                    <label className="form-label small fw-bold text-muted mb-1">Type de variante</label>
+                                    <select 
+                                      className="form-select form-select-sm rounded-3" 
+                                      value={variant.type} 
+                                      onChange={(e) => handleUpdateVariantField(vIdx, 'type', e.target.value)}
+                                    >
+                                      <option value="text">Texte / Option simple</option>
+                                      <option value="color">Couleur / Code couleur</option>
+                                    </select>
+                                  </div>
+                                </div>
+
+                                {/* Options list */}
+                                <div className="ps-2.5 border-start border-3 border-light text-start">
+                                  <div className="d-flex justify-content-between align-items-center mb-2">
+                                    <span className="small fw-bold text-dark">Options de la variante</span>
+                                    <button 
+                                      type="button" 
+                                      onClick={() => handleAddOption(vIdx)} 
+                                      className="btn btn-sm btn-outline-dark rounded-pill py-0.5 px-2.5" 
+                                      style={{ fontSize: '0.75rem' }}
+                                    >
+                                      + Ajouter option
+                                    </button>
+                                  </div>
+
+                                  {variant.options.length === 0 ? (
+                                    <div className="text-muted small py-2 text-center" style={{ fontSize: '0.8rem' }}>
+                                      Ajoutez au moins une option (ex: Noir, XL...)
+                                    </div>
+                                  ) : (
+                                    <div className="d-flex flex-column gap-2">
+                                      {variant.options.map((opt, oIdx) => (
+                                        <div key={oIdx} className="d-flex align-items-center gap-2 flex-wrap">
+                                          {/* Option Value */}
+                                          <div className="flex-grow-1" style={{ minWidth: '120px' }}>
+                                            <input 
+                                              type="text" 
+                                              required 
+                                              className="form-control form-control-sm rounded-3" 
+                                              value={opt.value} 
+                                              onChange={(e) => handleUpdateOptionField(vIdx, oIdx, 'value', e.target.value)}
+                                              placeholder="ex: Rouge, Noir, XL..."
+                                            />
+                                          </div>
+
+                                          {/* If variant type is color, show color picker & code input */}
+                                          {variant.type === 'color' && (
+                                            <div className="d-flex align-items-center gap-1.5">
+                                              <input 
+                                                type="color" 
+                                                className="form-control form-control-color form-control-sm border rounded" 
+                                                style={{ width: '30px', height: '30px', padding: '1px' }}
+                                                value={opt.code || '#000000'} 
+                                                onChange={(e) => handleUpdateOptionField(vIdx, oIdx, 'code', e.target.value)}
+                                              />
+                                              <input 
+                                                type="text" 
+                                                className="form-control form-control-sm rounded-3" 
+                                                style={{ width: '80px', fontSize: '0.8rem' }}
+                                                value={opt.code || '#000000'} 
+                                                onChange={(e) => handleUpdateOptionField(vIdx, oIdx, 'code', e.target.value)}
+                                                placeholder="#HEX"
+                                              />
+                                            </div>
+                                          )}
+
+                                          {/* Option Image association from uploadedImages list */}
+                                          {uploadedImages.length > 0 && (
+                                            <div className="flex-grow-1" style={{ minWidth: '160px' }}>
+                                              <select 
+                                                className="form-select form-select-sm rounded-3" 
+                                                style={{ fontSize: '0.8rem' }}
+                                                value={opt.image || ''} 
+                                                onChange={(e) => handleUpdateOptionField(vIdx, oIdx, 'image', e.target.value)}
+                                              >
+                                                <option value="">Image par défaut</option>
+                                                {uploadedImages.map((img, imgIdx) => (
+                                                  <option key={imgIdx} value={img}>
+                                                    Photo {imgIdx + 1}
+                                                  </option>
+                                                ))}
+                                              </select>
+                                            </div>
+                                          )}
+
+                                          {/* Remove Option Button */}
+                                          <button 
+                                            type="button" 
+                                            onClick={() => handleRemoveOption(vIdx, oIdx)}
+                                            className="btn btn-outline-danger btn-sm rounded-circle p-1 d-flex align-items-center justify-content-center"
+                                            style={{ width: '24px', height: '24px' }}
+                                          >
+                                            <Trash2 size={12} />
+                                          </button>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
 
                   </div>
                 </div>

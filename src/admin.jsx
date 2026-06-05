@@ -14,6 +14,11 @@ function AdminApp() {
   const [products, setProducts] = useState([]);
   const [orders, setOrders] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [contacts, setContacts] = useState([]);
+  const [adminCredentials, setAdminCredentials] = useState({
+    email: 'admin@bicyclehouse.ma',
+    password: 'admin123'
+  });
   const [isDataLoading, setIsDataLoading] = useState(isFirebaseConfigured);
 
   // Admin Authentication State (tab-session persistent)
@@ -40,6 +45,16 @@ function AdminApp() {
         { id: 'les-frein', name: 'les frein' },
         { id: 'les-accesoires', name: 'les accesoires' }
       ]);
+
+      const savedContacts = localStorage.getItem('bh_contacts');
+      setContacts(savedContacts ? JSON.parse(savedContacts) : []);
+
+      const savedEmail = localStorage.getItem('bh_admin_email');
+      const savedPassword = localStorage.getItem('bh_admin_password');
+      setAdminCredentials({
+        email: savedEmail || 'admin@bicyclehouse.ma',
+        password: savedPassword || 'admin123'
+      });
       return;
     }
 
@@ -113,10 +128,31 @@ function AdminApp() {
       setIsDataLoading(false);
     });
 
+    // 4. Sync Contacts
+    const unsubContacts = onSnapshot(collection(db, 'contacts'), (snapshot) => {
+      const contactsList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      contactsList.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      setContacts(contactsList);
+    });
+
+    // 5. Sync Admin Credentials
+    const unsubCredentials = onSnapshot(doc(db, 'settings', 'admin'), (docSnap) => {
+      if (docSnap.exists()) {
+        setAdminCredentials(docSnap.data());
+      } else {
+        setDoc(doc(db, 'settings', 'admin'), {
+          email: 'admin@bicyclehouse.ma',
+          password: 'admin123'
+        });
+      }
+    });
+
     return () => {
       unsubCategories();
       unsubProducts();
       unsubOrders();
+      unsubContacts();
+      unsubCredentials();
     };
   }, []);
 
@@ -139,6 +175,12 @@ function AdminApp() {
     }
   }, [categories]);
 
+  useEffect(() => {
+    if (!isFirebaseConfigured) {
+      localStorage.setItem('bh_contacts', JSON.stringify(contacts));
+    }
+  }, [contacts]);
+
   return (
     <div className="min-h-screen py-4 px-3 px-lg-5" style={{ backgroundColor: '#FCFCFC' }}>
       {isDataLoading && (
@@ -155,6 +197,10 @@ function AdminApp() {
         setOrders={setOrders}
         categories={categories}
         setCategories={setCategories}
+        contacts={contacts}
+        setContacts={setContacts}
+        adminCredentials={adminCredentials}
+        setAdminCredentials={setAdminCredentials}
         isAdminLoggedIn={isAdminLoggedIn}
         setIsAdminLoggedIn={setIsAdminLoggedIn}
       />

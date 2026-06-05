@@ -1201,6 +1201,43 @@ function App() {
                   ) : (
                     <form onSubmit={(e) => {
                       e.preventDefault();
+                      const formData = new FormData(e.currentTarget);
+                      const name = formData.get('name');
+                      const email = formData.get('email');
+                      const subject = formData.get('subject');
+                      const message = formData.get('message');
+                      
+                      const getFrenchDate = () => {
+                        const date = new Date();
+                        const months = ['Janv', 'Févr', 'Mars', 'Avril', 'Mai', 'Juin', 'Juil', 'Août', 'Sept', 'Oct', 'Nov', 'Déc'];
+                        const day = String(date.getDate()).padStart(2, '0');
+                        const month = months[date.getMonth()];
+                        const year = date.getFullYear();
+                        const hours = String(date.getHours()).padStart(2, '0');
+                        const minutes = String(date.getMinutes()).padStart(2, '0');
+                        return `${day} ${month} ${year} à ${hours}:${minutes}`;
+                      };
+
+                      const newContact = {
+                        id: Date.now().toString(),
+                        name,
+                        email,
+                        subject,
+                        message,
+                        createdAt: new Date().toISOString(),
+                        date: getFrenchDate()
+                      };
+
+                      if (isFirebaseConfigured) {
+                        setDoc(doc(db, 'contacts', newContact.id), newContact)
+                          .catch(err => console.error("Firestore error saving contact message:", err));
+                      } else {
+                        const localContacts = localStorage.getItem('bh_contacts');
+                        const list = localContacts ? JSON.parse(localContacts) : [];
+                        list.unshift(newContact);
+                        localStorage.setItem('bh_contacts', JSON.stringify(list));
+                      }
+
                       setContactSubmitted(true);
                       confetti({ particleCount: 50, spread: 60 });
                       showToast('Votre message a été envoyé !');
@@ -1208,19 +1245,19 @@ function App() {
                       <div className="row g-3">
                         <div className="col-md-6">
                           <label className="form-label small fw-semibold">Nom Complet *</label>
-                          <input type="text" required className="form-control" />
+                          <input type="text" name="name" required className="form-control" />
                         </div>
                         <div className="col-md-6">
                           <label className="form-label small fw-semibold">E-mail *</label>
-                          <input type="email" required className="form-control" />
+                          <input type="email" name="email" required className="form-control" />
                         </div>
                         <div className="col-12">
                           <label className="form-label small fw-semibold">Sujet *</label>
-                          <input type="text" required className="form-control" />
+                          <input type="text" name="subject" required className="form-control" />
                         </div>
                         <div className="col-12">
                           <label className="form-label small fw-semibold">Votre Message *</label>
-                          <textarea rows="4" required className="form-control" placeholder="Bonjour, je souhaiterais savoir si le dérailleur Shimano Deore M6100 est compatible avec..."></textarea>
+                          <textarea name="message" rows="4" required className="form-control" placeholder="Bonjour, je souhaiterais savoir si le dérailleur Shimano Deore M6100 est compatible avec..."></textarea>
                         </div>
                         <div className="col-12">
                           <button type="submit" className="btn btn-primary rounded-pill px-4 py-2 d-flex align-items-center gap-2">
