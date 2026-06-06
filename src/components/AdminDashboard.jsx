@@ -29,6 +29,9 @@ import {
   Mail
 } from 'lucide-react';
 
+// Import Logo
+import logoImg from '../assets/logo.png';
+
 // Import Firebase database config
 import { db, isFirebaseConfigured } from '../firebase';
 import { doc, setDoc, deleteDoc } from 'firebase/firestore';
@@ -58,6 +61,7 @@ const AdminDashboard = ({
   const [confirmPassword, setConfirmPassword] = useState('');
   const [securitySuccess, setSecuritySuccess] = useState('');
   const [securityError, setSecurityError] = useState('');
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
 
   // Sync newEmail with loaded adminCredentials
   useEffect(() => {
@@ -75,7 +79,7 @@ const AdminDashboard = ({
   const [editingProduct, setEditingProduct] = useState(null); // null when adding new product
   const [productForm, setProductForm] = useState({
     title: '',
-    brand: 'PIKALA DETACHEE',
+    brand: '',
     category: '',
     categoryLabel: '',
     price: '',
@@ -103,6 +107,9 @@ const AdminDashboard = ({
   const [productSearch, setProductSearch] = useState('');
   const [orderSearch, setOrderSearch] = useState('');
   const [contactSearch, setContactSearch] = useState('');
+
+  // Image/Detail Preview Modal State
+  const [previewItem, setPreviewItem] = useState(null);
 
   // Notification Toast State
   const [toast, setToast] = useState(null);
@@ -246,7 +253,7 @@ const AdminDashboard = ({
       setProductVariants(product.variants ? JSON.parse(JSON.stringify(product.variants)) : []);
       setProductForm({
         title: product.title,
-        brand: product.brand || 'PIKALA DETACHEE',
+        brand: product.brand || '',
         category: product.category || defaultCat,
         categoryLabel: product.categoryLabel || '',
         price: product.price,
@@ -263,7 +270,7 @@ const AdminDashboard = ({
       setProductVariants([]);
       setProductForm({
         title: '',
-        brand: 'PIKALA DETACHEE',
+        brand: '',
         category: defaultCat,
         categoryLabel: '',
         price: '',
@@ -319,7 +326,25 @@ const AdminDashboard = ({
 
   const handleUpdateVariantField = (vIdx, field, value) => {
     setProductVariants(prev => 
-      prev.map((v, i) => i === vIdx ? { ...v, [field]: value } : v)
+      prev.map((v, i) => {
+        if (i === vIdx) {
+          const updated = { ...v, [field]: value };
+          // If type changes, adjust options accordingly to keep data clean
+          if (field === 'type') {
+            updated.options = v.options.map(opt => {
+              const cleanOpt = { ...opt };
+              if (value === 'color') {
+                cleanOpt.code = opt.code || '#111111';
+              } else {
+                delete cleanOpt.code;
+              }
+              return cleanOpt;
+            });
+          }
+          return updated;
+        }
+        return v;
+      })
     );
   };
 
@@ -327,7 +352,10 @@ const AdminDashboard = ({
     setProductVariants(prev => 
       prev.map((v, i) => {
         if (i === vIdx) {
-          const newOpt = { value: '', code: v.type === 'color' ? '#111111' : undefined };
+          const newOpt = { value: '' };
+          if (v.type === 'color') {
+            newOpt.code = '#111111';
+          }
           return {
             ...v,
             options: [...v.options, newOpt]
@@ -358,9 +386,18 @@ const AdminDashboard = ({
         if (i === vIdx) {
           return {
             ...v,
-            options: v.options.map((opt, oi) => 
-              oi === oIdx ? { ...opt, [field]: value === '' ? undefined : value } : opt
-            )
+            options: v.options.map((opt, oi) => {
+              if (oi === oIdx) {
+                const updated = { ...opt };
+                if (value === '') {
+                  delete updated[field];
+                } else {
+                  updated[field] = value;
+                }
+                return updated;
+              }
+              return opt;
+            })
           };
         }
         return v;
@@ -376,9 +413,37 @@ const AdminDashboard = ({
     const matchedCategory = categories.find(c => c.id === productForm.category);
     const finalLabel = matchedCategory ? matchedCategory.name : 'Accessoires';
 
-    const priceNum = parseFloat(productForm.price);
-    const oldPriceNum = productForm.oldPrice ? parseFloat(productForm.oldPrice) : null;
-    const discountNum = productForm.discount ? parseInt(productForm.discount) : null;
+    let priceNum = parseFloat(productForm.price) || 0;
+    let oldPriceNum = productForm.oldPrice && !isNaN(parseFloat(productForm.oldPrice)) ? parseFloat(productForm.oldPrice) : null;
+
+    if (oldPriceNum !== null && oldPriceNum < priceNum) {
+      const temp = priceNum;
+      priceNum = oldPriceNum;
+      oldPriceNum = temp;
+    }
+
+    const discountNum = productForm.discount && !isNaN(parseInt(productForm.discount)) ? parseInt(productForm.discount) : null;
+
+    // Clean variants to avoid undefined values which crash Firestore
+    const cleanVariants = productVariants && productVariants.length > 0 
+      ? productVariants.map(v => {
+          const cleanV = {
+            name: v.name || '',
+            type: v.type || 'text',
+            options: (v.options || []).map(opt => {
+              const cleanOpt = { value: opt.value || '' };
+              if (v.type === 'color' && opt.code) {
+                cleanOpt.code = opt.code;
+              }
+              if (opt.image) {
+                cleanOpt.image = opt.image;
+              }
+              return cleanOpt;
+            })
+          };
+          return cleanV;
+        })
+      : null;
 
     const productData = {
       title: productForm.title,
@@ -394,7 +459,7 @@ const AdminDashboard = ({
       isSoldOut: editingProduct ? editingProduct.isSoldOut : false,
       rating: editingProduct ? editingProduct.rating : 5.0,
       reviewsCount: editingProduct ? editingProduct.reviewsCount : 0,
-      variants: productVariants.length > 0 ? productVariants : null
+      variants: cleanVariants
     };
 
     if (editingProduct) {
@@ -585,9 +650,40 @@ const AdminDashboard = ({
     }
   };
 
-  // Calculate statistics
+  // Calculate statistics (confirmed orders in the last 30 days)
   const totalRevenue = orders
     .filter(o => o.status === 'Confirmé')
+    .filter(o => {
+      let orderDate = null;
+      if (o.date) {
+        const months = {
+          'Janv': 0, 'Févr': 1, 'Mars': 2, 'Avril': 3, 'Mai': 4, 'Juin': 5,
+          'Juil': 6, 'Août': 7, 'Sept': 8, 'Oct': 9, 'Nov': 10, 'Déc': 11
+        };
+        const parts = o.date.split(/[\s,:]+/);
+        if (parts.length >= 3) {
+          const day = parseInt(parts[0], 10);
+          const monthStr = parts[1];
+          const year = parseInt(parts[2], 10);
+          const month = months[monthStr] !== undefined ? months[monthStr] : 0;
+          orderDate = new Date(year, month, day);
+        }
+      }
+      
+      // Fallback to order ID timestamp if it represents a valid date after 2020-01-01
+      if (!orderDate || isNaN(orderDate.getTime())) {
+        const orderTime = Number(o.id);
+        if (!isNaN(orderTime) && orderTime > 1577836800000) {
+          orderDate = new Date(orderTime);
+        }
+      }
+      
+      if (orderDate && !isNaN(orderDate.getTime())) {
+        const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+        return orderDate.getTime() >= thirtyDaysAgo;
+      }
+      return true; // fallback to include if date can't be parsed
+    })
     .reduce((sum, o) => sum + o.total, 0);
 
   const pendingOrdersCount = orders.filter(o => o.status === 'En attente').length;
@@ -632,7 +728,6 @@ const AdminDashboard = ({
               <input 
                 type="email" 
                 required 
-                placeholder="admin@bicyclehouse.ma"
                 className="form-control rounded-3" 
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -644,7 +739,6 @@ const AdminDashboard = ({
               <input 
                 type="password" 
                 required 
-                placeholder="••••••••"
                 className="form-control rounded-3" 
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -675,9 +769,7 @@ const AdminDashboard = ({
       {/* Mobile Top Navigation Header */}
       <div className="d-flex d-md-none justify-content-between align-items-center bg-white border-bottom px-3 py-3 mb-3 sticky-top shadow-sm" style={{ zIndex: 1030, margin: '0 -1rem' }}>
         <div className="d-flex align-items-center gap-2">
-          <div className="p-2 rounded-3 text-white" style={{ backgroundColor: 'var(--pk-orange)' }}>
-            <Archive size={16} />
-          </div>
+          <img src={logoImg} alt="Logo" style={{ height: '35px', width: '35px', objectFit: 'contain' }} />
           <div>
             <h6 className="fw-bold m-0 text-dark" style={{ fontFamily: 'var(--pk-font-heading)', fontSize: '0.92rem' }}>Bicycle House</h6>
             <span className="text-muted" style={{ fontSize: '0.65rem' }}>Espace Administration</span>
@@ -706,9 +798,7 @@ const AdminDashboard = ({
           >
             <div className="d-flex align-items-center justify-content-between pb-3 mb-4 border-bottom">
               <div className="d-flex align-items-center gap-2.5">
-                <div className="p-2 rounded-3 text-white" style={{ backgroundColor: 'var(--pk-orange)' }}>
-                  <Archive size={18} />
-                </div>
+                <img src={logoImg} alt="Logo" style={{ height: '38px', width: '38px', objectFit: 'contain' }} />
                 <div>
                   <h5 className="fw-bold m-0 text-dark" style={{ fontFamily: 'var(--pk-font-heading)' }}>Bicycle House</h5>
                   <span className="text-muted" style={{ fontSize: '0.7rem' }}>Administration</span>
@@ -805,9 +895,7 @@ const AdminDashboard = ({
         <div className="col-lg-3 col-md-4 d-none d-md-block">
           <div className="card shadow-sm border p-3 bg-white" style={{ borderRadius: '18px', position: 'sticky', top: '20px' }}>
             <div className="d-flex align-items-center gap-2.5 pb-3 mb-3 border-bottom">
-              <div className="p-2 rounded-3 text-white" style={{ backgroundColor: 'var(--pk-orange)' }}>
-                <Archive size={20} />
-              </div>
+              <img src={logoImg} alt="Logo" style={{ height: '40px', width: '40px', objectFit: 'contain' }} />
               <div>
                 <h5 className="fw-bold m-0 text-dark" style={{ fontFamily: 'var(--pk-font-heading)' }}>Bicycle House</h5>
                 <span className="badge bg-light text-dark border px-2 py-0.5" style={{ fontSize: '0.7rem' }}>Panel Admin</span>
@@ -905,7 +993,7 @@ const AdminDashboard = ({
                         <DollarSign size={20} />
                       </div>
                     </div>
-                    <div className="small text-muted mt-2">(Commandes confirmées)</div>
+                    <div className="small text-muted mt-2">(30 derniers jours)</div>
                   </div>
                 </div>
 
@@ -1100,7 +1188,7 @@ const AdminDashboard = ({
                 </div>
               </div>
 
-              <div className="table-responsive">
+              <div className="table-responsive d-none d-md-block">
                 <table className="table table-hover align-middle mb-0" style={{ fontSize: '0.88rem' }}>
                   <thead className="table-light">
                     <tr className="border-bottom" style={{ fontWeight: '600' }}>
@@ -1142,7 +1230,17 @@ const AdminDashboard = ({
                             <div className="d-flex flex-column gap-1.5">
                               {order.items.map((item, idx) => (
                                 <div key={idx} className="bg-light p-1.5 px-2.5 rounded border d-flex align-items-center gap-2" style={{ fontSize: '0.78rem', maxWidth: '320px' }}>
-                                  <div className="border rounded bg-white p-0.5" style={{ width: '40px', height: '40px', flexShrink: 0 }}>
+                                  <div 
+                                    className="border rounded bg-white p-0.5" 
+                                    style={{ width: '40px', height: '40px', flexShrink: 0, cursor: 'pointer' }}
+                                    onClick={() => setPreviewItem({
+                                      image: item.product.image,
+                                      title: item.product.title,
+                                      selectedVariants: item.selectedVariants,
+                                      price: item.product.price
+                                    })}
+                                    title="Cliquez pour agrandir"
+                                  >
                                     <img 
                                       src={item.product.image} 
                                       alt="" 
@@ -1151,7 +1249,19 @@ const AdminDashboard = ({
                                     />
                                   </div>
                                   <div className="flex-grow-1 min-w-0">
-                                    <div className="fw-bold text-truncate" title={item.product.title}>{item.product.title}</div>
+                                    <div 
+                                      className="fw-bold text-truncate" 
+                                      style={{ cursor: 'pointer' }}
+                                      onClick={() => setPreviewItem({
+                                        image: item.product.image,
+                                        title: item.product.title,
+                                        selectedVariants: item.selectedVariants,
+                                        price: item.product.price
+                                      })}
+                                      title="Cliquez pour agrandir"
+                                    >
+                                      {item.product.title}
+                                    </div>
                                     <div className="d-flex justify-content-between text-muted" style={{ fontSize: '0.72rem' }}>
                                       <span>Quantité: {item.quantity}</span>
                                       <span>{item.product.price} DH</span>
@@ -1221,6 +1331,139 @@ const AdminDashboard = ({
                   </tbody>
                 </table>
               </div>
+
+              {/* Mobile Orders View */}
+              <div className="d-block d-md-none p-3 bg-light" style={{ maxHeight: '600px', overflowY: 'auto' }}>
+                {filteredOrdersList.length === 0 ? (
+                  <div className="text-center py-4 text-muted bg-white rounded-3 border">
+                    Aucune commande ne correspond aux critères.
+                  </div>
+                ) : (
+                  <div className="d-flex flex-column gap-3">
+                    {filteredOrdersList.map((order) => (
+                      <div key={order.id} className="card shadow-sm border rounded-3 bg-white p-3">
+                        <div className="d-flex justify-content-between align-items-start border-bottom pb-2 mb-2">
+                          <div>
+                            <span className="fw-bold text-orange" style={{ fontSize: '0.95rem' }}>#{order.id.toString().slice(-6)}</span>
+                            <div className="text-muted" style={{ fontSize: '0.72rem' }}>{order.date}</div>
+                          </div>
+                          <span className={`badge rounded-pill px-2.5 py-1 fw-bold ${
+                            order.status === 'Confirmé' 
+                              ? 'bg-success text-white' 
+                              : order.status === 'Annulé' 
+                                ? 'bg-danger text-white' 
+                                : 'bg-warning text-dark'
+                          }`} style={{ fontSize: '0.75rem' }}>
+                            {order.status}
+                          </span>
+                        </div>
+
+                        {/* Customer Info */}
+                        <div className="mb-2" style={{ fontSize: '0.82rem' }}>
+                          <div className="fw-bold text-dark">{order.customer.fullName}</div>
+                          <div className="text-muted mt-1">
+                            <a href={`tel:${order.customer.phone}`} className="text-decoration-none text-muted fw-semibold">
+                              📞 {order.customer.phone}
+                            </a>
+                          </div>
+                          <div className="text-muted mt-1">
+                            📍 {order.customer.address}, <strong>{order.customer.city}</strong>
+                          </div>
+                        </div>
+
+                        {/* Ordered Items */}
+                        <div className="d-flex flex-column gap-2 border-top border-bottom py-2 my-2 bg-light bg-opacity-50 px-2 rounded">
+                          {order.items.map((item, idx) => (
+                            <div key={idx} className="d-flex align-items-center gap-2 w-100 min-w-0" style={{ fontSize: '0.78rem' }}>
+                              <div 
+                                className="border rounded bg-white p-0.5" 
+                                style={{ width: '36px', height: '36px', flexShrink: 0, cursor: 'pointer' }}
+                                onClick={() => setPreviewItem({
+                                  image: item.product.image,
+                                  title: item.product.title,
+                                  selectedVariants: item.selectedVariants,
+                                  price: item.product.price
+                                })}
+                                title="Cliquez pour agrandir"
+                              >
+                                <img 
+                                  src={item.product.image} 
+                                  alt="" 
+                                  className="w-100 h-100 object-fit-contain" 
+                                  onError={(e) => { e.target.src = '/bicyclehouse/hero.png'; }}
+                                />
+                              </div>
+                              <div className="flex-grow-1 min-w-0">
+                                <div 
+                                  className="fw-bold text-wrap" 
+                                  style={{ cursor: 'pointer' }}
+                                  onClick={() => setPreviewItem({
+                                    image: item.product.image,
+                                    title: item.product.title,
+                                    selectedVariants: item.selectedVariants,
+                                    price: item.product.price
+                                  })}
+                                  title="Cliquez pour agrandir"
+                                >
+                                  {item.product.title}
+                                </div>
+                                <div className="text-muted" style={{ fontSize: '0.72rem' }}>
+                                  Quantité: {item.quantity} | {item.product.price} DH
+                                </div>
+                                {item.selectedVariants && Object.keys(item.selectedVariants).length > 0 && (
+                                  <div className="text-orange fw-semibold" style={{ fontSize: '0.68rem' }}>
+                                    {Object.entries(item.selectedVariants).map(([k, v]) => `${k}: ${v}`).join(' | ')}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Total & Action Buttons */}
+                        <div className="d-flex justify-content-between align-items-center mt-1">
+                          <div>
+                            <span className="text-muted small">Total : </span>
+                            <span className="fw-bold text-dark">{order.total} DH</span>
+                          </div>
+                          <div className="d-flex gap-1">
+                            {order.status !== 'Confirmé' && (
+                              <button 
+                                onClick={() => updateOrderStatus(order.id, 'Confirmé')}
+                                className="btn btn-success btn-sm rounded-pill px-2 py-1 d-flex align-items-center gap-1 border-0"
+                                style={{ fontSize: '0.72rem' }}
+                              >
+                                <Check size={12} />
+                                <span>Confirmer</span>
+                              </button>
+                            )}
+                            {order.status !== 'Annulé' && (
+                              <button 
+                                onClick={() => updateOrderStatus(order.id, 'Annulé')}
+                                className="btn btn-danger btn-sm rounded-pill px-2 py-1 d-flex align-items-center gap-1 border-0"
+                                style={{ fontSize: '0.72rem' }}
+                              >
+                                <X size={12} />
+                                <span>Annuler</span>
+                              </button>
+                            )}
+                            {order.status !== 'En attente' && (
+                              <button 
+                                onClick={() => updateOrderStatus(order.id, 'En attente')}
+                                className="btn btn-outline-secondary btn-sm rounded-pill px-2 py-1 d-flex align-items-center gap-1 border"
+                                style={{ fontSize: '0.72rem' }}
+                              >
+                                <RefreshCw size={10} />
+                                <span>Attente</span>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -1250,7 +1493,8 @@ const AdminDashboard = ({
                 </div>
               </div>
 
-              <div className="table-responsive">
+              {/* Desktop Products Table */}
+              <div className="table-responsive d-none d-md-block">
                 <table className="table table-hover align-middle mb-0" style={{ fontSize: '0.88rem' }}>
                   <thead className="table-light">
                     <tr className="border-bottom" style={{ fontWeight: '600' }}>
@@ -1329,6 +1573,70 @@ const AdminDashboard = ({
                     ))}
                   </tbody>
                 </table>
+              </div>
+
+              {/* Mobile Products View */}
+              <div className="d-block d-md-none p-3 bg-light" style={{ maxHeight: '600px', overflowY: 'auto' }}>
+                {filteredProductsList.length === 0 ? (
+                  <div className="text-center py-4 text-muted bg-white rounded-3 border">
+                    Aucun produit trouvé.
+                  </div>
+                ) : (
+                  <div className="d-flex flex-column gap-3">
+                    {filteredProductsList.map((p) => (
+                      <div key={p.id} className="card shadow-sm border rounded-3 bg-white p-3 text-start">
+                        <div className="d-flex gap-3">
+                          <div className="border rounded p-1 bg-white" style={{ width: '70px', height: '70px', flexShrink: 0 }}>
+                            <img src={p.image} alt={p.title} className="w-100 h-100 object-fit-contain" onError={(e) => { e.target.src = '/bicyclehouse/hero.png'; }} />
+                          </div>
+                          <div className="flex-grow-1 min-w-0">
+                            <div className="small text-muted text-uppercase fw-semibold" style={{ fontSize: '0.7rem' }}>{p.brand}</div>
+                            <div className="fw-bold text-dark text-wrap mb-1" style={{ fontSize: '0.88rem' }}>{p.title}</div>
+                            <span className="badge bg-light text-dark border me-1" style={{ fontSize: '0.7rem' }}>{p.categoryLabel}</span>
+                            {p.discount && <span className="badge bg-danger rounded-pill" style={{ fontSize: '0.7rem' }}>-{p.discount}%</span>}
+                          </div>
+                        </div>
+                        
+                        <div className="d-flex justify-content-between align-items-center mt-3 pt-2.5 border-top">
+                          <div>
+                            <span className="fw-bold text-dark fs-6">{p.price} DH</span>
+                            {p.oldPrice && <span className="text-muted text-decoration-line-through small ms-2" style={{ fontSize: '0.78rem' }}>{p.oldPrice} DH</span>}
+                          </div>
+                          <button 
+                            onClick={() => toggleStockStatus(p.id)}
+                            className={`btn btn-sm rounded-pill fw-bold border-0 px-3 py-1 ${
+                              p.isSoldOut 
+                                ? 'bg-danger bg-opacity-10 text-danger' 
+                                : 'bg-success bg-opacity-10 text-success'
+                            }`}
+                            style={{ fontSize: '0.72rem' }}
+                          >
+                            {p.isSoldOut ? 'Épuisé' : 'En Stock'}
+                          </button>
+                        </div>
+
+                        <div className="d-flex justify-content-end gap-2 mt-3 pt-2.5 border-top">
+                          <button 
+                            onClick={() => openModal(p)}
+                            className="btn btn-outline-dark btn-sm rounded-pill px-3 py-1.5 d-flex align-items-center gap-1.5"
+                            style={{ fontSize: '0.75rem' }}
+                          >
+                            <Edit size={14} />
+                            <span>Modifier</span>
+                          </button>
+                          <button 
+                            onClick={() => handleDeleteProduct(p.id)}
+                            className="btn btn-outline-danger btn-sm rounded-pill px-3 py-1.5 d-flex align-items-center gap-1.5"
+                            style={{ fontSize: '0.75rem' }}
+                          >
+                            <Trash2 size={14} />
+                            <span>Supprimer</span>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -1434,7 +1742,8 @@ const AdminDashboard = ({
                     </button>
                   </div>
 
-                  <div className="table-responsive">
+                  {/* Desktop Categories Table */}
+                  <div className="table-responsive d-none d-md-block">
                     <table className="table table-hover align-middle mb-0" style={{ fontSize: '0.88rem' }}>
                       <thead className="table-light">
                         <tr className="border-bottom" style={{ fontWeight: '600' }}>
@@ -1496,6 +1805,60 @@ const AdminDashboard = ({
                       </tbody>
                     </table>
                   </div>
+
+                  {/* Mobile Categories View */}
+                  <div className="d-block d-md-none p-3 bg-light" style={{ maxHeight: '600px', overflowY: 'auto' }}>
+                    <div className="d-flex flex-column gap-3">
+                      {categories.map((cat) => {
+                        const productCount = products.filter(p => p.category === cat.id).length;
+                        return (
+                          <div key={cat.id} className="card shadow-sm border rounded-3 bg-white p-3 text-start">
+                            <div className="d-flex align-items-center justify-content-between border-bottom pb-2 mb-2">
+                              <div className="d-flex align-items-center gap-2">
+                                <Folder size={18} className="text-orange" />
+                                <span className="fw-bold text-dark">{cat.name}</span>
+                              </div>
+                              <span className="badge bg-dark rounded-pill px-2.5 py-1" style={{ fontSize: '0.72rem' }}>
+                                {productCount} produits
+                              </span>
+                            </div>
+                            
+                            <div className="mb-3 small">
+                              <span className="text-muted">Slug ID: </span>
+                              <code className="bg-light text-muted px-1.5 py-0.5 rounded">{cat.id}</code>
+                            </div>
+
+                            <div className="d-flex flex-wrap gap-2 pt-2 border-top justify-content-end">
+                              <button 
+                                onClick={() => setSelectedCategoryMapping(cat)}
+                                className="btn btn-outline-orange btn-sm rounded-pill px-3 py-1.5 d-flex align-items-center gap-1 fw-semibold"
+                                style={{ fontSize: '0.72rem' }}
+                              >
+                                <ArrowLeftRight size={12} />
+                                <span>Gérer les produits</span>
+                              </button>
+                              <button 
+                                onClick={() => openCategoryModal(cat)}
+                                className="btn btn-outline-dark btn-sm rounded-pill px-3 py-1.5 d-flex align-items-center gap-1"
+                                style={{ fontSize: '0.72rem' }}
+                              >
+                                <Edit size={12} />
+                                <span>Modifier</span>
+                              </button>
+                              <button 
+                                onClick={() => handleDeleteCategory(cat.id)}
+                                className="btn btn-outline-danger btn-sm rounded-pill px-3 py-1.5 d-flex align-items-center gap-1"
+                                style={{ fontSize: '0.72rem' }}
+                              >
+                                <Trash2 size={12} />
+                                <span>Supprimer</span>
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -1512,6 +1875,33 @@ const AdminDashboard = ({
               <p className="text-muted small mb-4">
                 Configurez l'adresse email et le mot de passe requis pour accéder à cet espace d'administration. Les modifications sont enregistrées localement dans votre navigateur.
               </p>
+
+              {/* Current Credentials Box */}
+              <div className="card bg-light border p-3 rounded-3 mb-4">
+                <div className="fw-bold mb-2 text-dark" style={{ fontSize: '0.85rem' }}>Identifiants Actuels :</div>
+                <div className="d-flex flex-column gap-2" style={{ fontSize: '0.82rem' }}>
+                  <div className="d-flex align-items-center gap-2">
+                    <span className="text-muted fw-semibold" style={{ width: '90px' }}>E-mail :</span>
+                    <code className="text-dark bg-white border px-2.5 py-1 rounded" style={{ fontSize: '0.82rem' }}>{adminCredentials.email}</code>
+                  </div>
+                  <div className="d-flex align-items-center gap-2">
+                    <span className="text-muted fw-semibold" style={{ width: '90px' }}>Mot de passe :</span>
+                    <div className="d-flex align-items-center gap-2">
+                      <code className="text-dark bg-white border px-2.5 py-1 rounded" style={{ fontSize: '0.82rem' }}>
+                        {showCurrentPassword ? adminCredentials.password : '••••••••'}
+                      </code>
+                      <button 
+                        type="button"
+                        onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                        className="btn btn-sm btn-link p-0 text-orange fw-bold text-decoration-none"
+                        style={{ fontSize: '0.78rem', color: 'var(--pk-orange)' }}
+                      >
+                        {showCurrentPassword ? 'Masquer' : 'Afficher'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
 
               {securityError && (
                 <div className="alert alert-danger py-2 px-3 small rounded-3 d-flex align-items-center gap-2 mb-3">
@@ -1536,7 +1926,6 @@ const AdminDashboard = ({
                     className="form-control rounded-3" 
                     value={newEmail}
                     onChange={(e) => setNewEmail(e.target.value)}
-                    placeholder="admin@bicyclehouse.ma"
                   />
                 </div>
 
@@ -1548,7 +1937,6 @@ const AdminDashboard = ({
                       className="form-control rounded-3" 
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
-                      placeholder="••••••••"
                     />
                   </div>
                   <div className="col-md-6">
@@ -1558,7 +1946,6 @@ const AdminDashboard = ({
                       className="form-control rounded-3" 
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
-                      placeholder="••••••••"
                     />
                   </div>
                 </div>
@@ -1689,6 +2076,60 @@ const AdminDashboard = ({
         </div>
       </div>
 
+      {/* IMAGE PREVIEW MODAL */}
+      {previewItem && (
+        <div className="modal show d-block animate-fade-in" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.7)', zIndex: 1070 }} onClick={() => setPreviewItem(null)}>
+          <div className="modal-dialog modal-dialog-centered modal-md" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-content border-0 shadow-lg" style={{ borderRadius: '20px', overflow: 'hidden' }}>
+              <div className="modal-header border-bottom px-4 py-3 bg-light">
+                <h5 className="modal-title fw-bold text-orange text-truncate" style={{ maxWidth: '80%' }}>
+                  Détails du Produit Commandé
+                </h5>
+                <button type="button" className="btn-close" onClick={() => setPreviewItem(null)}></button>
+              </div>
+              <div className="modal-body p-4 text-center">
+                <div className="border rounded-4 bg-white p-3 mb-3 d-flex align-items-center justify-content-center animate-zoom-in" style={{ minHeight: '300px', maxHeight: '400px', overflow: 'hidden' }}>
+                  <img 
+                    src={previewItem.image} 
+                    alt={previewItem.title} 
+                    className="img-fluid rounded-3 object-fit-contain" 
+                    style={{ maxHeight: '360px' }}
+                    onError={(e) => { e.target.src = '/bicyclehouse/hero.png'; }}
+                  />
+                </div>
+                <div className="text-start mt-3">
+                  <h5 className="fw-bold text-dark mb-1">{previewItem.title}</h5>
+                  <div className="fs-6 fw-semibold text-orange mb-3">{previewItem.price} DH</div>
+                  
+                  {previewItem.selectedVariants && Object.keys(previewItem.selectedVariants).length > 0 ? (
+                    <div className="bg-light p-3 rounded-3 border border-orange border-opacity-25 animate-fade-in">
+                      <div className="fw-bold text-orange small mb-2 text-uppercase" style={{ letterSpacing: '0.5px', fontSize: '0.75rem' }}>
+                        Options Sélectionnées par le Client :
+                      </div>
+                      <div className="d-flex flex-column gap-2">
+                        {Object.entries(previewItem.selectedVariants).map(([key, val]) => (
+                          <div key={key} className="d-flex justify-content-between align-items-center bg-white px-3 py-2 rounded border small">
+                            <span className="text-muted fw-semibold">{key}</span>
+                            <span className="fw-bold text-dark bg-light px-2 py-0.5 rounded border">{val}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-muted small italic">Aucune option spécifique sélectionnée (produit standard).</div>
+                  )}
+                </div>
+              </div>
+              <div className="modal-footer border-top px-4 py-3 bg-light">
+                <button type="button" className="btn btn-primary w-100 rounded-pill py-2.5 fw-bold" onClick={() => setPreviewItem(null)}>
+                  Fermer
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ADD/EDIT PRODUCT MODAL */}
       {showProductModal && (
         <div className="modal show d-block animate-fade-in" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }}>
@@ -1755,7 +2196,19 @@ const AdminDashboard = ({
                         step="0.01"
                         className="form-control rounded-3" 
                         value={productForm.price}
-                        onChange={(e) => setProductForm(prev => ({ ...prev, price: e.target.value }))}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setProductForm(prev => {
+                            const p = parseFloat(val);
+                            const op = parseFloat(prev.oldPrice);
+                            const maxP = Math.max(p, op);
+                            const minP = Math.min(p, op);
+                            const disc = (!isNaN(p) && !isNaN(op) && maxP > minP && minP > 0) 
+                              ? Math.round(((maxP - minP) / maxP) * 100).toString() 
+                              : '';
+                            return { ...prev, price: val, discount: disc };
+                          });
+                        }}
                       />
                     </div>
 
@@ -1767,7 +2220,19 @@ const AdminDashboard = ({
                         step="0.01"
                         className="form-control rounded-3" 
                         value={productForm.oldPrice}
-                        onChange={(e) => setProductForm(prev => ({ ...prev, oldPrice: e.target.value }))}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setProductForm(prev => {
+                            const p = parseFloat(prev.price);
+                            const op = parseFloat(val);
+                            const maxP = Math.max(p, op);
+                            const minP = Math.min(p, op);
+                            const disc = (!isNaN(p) && !isNaN(op) && maxP > minP && minP > 0) 
+                              ? Math.round(((maxP - minP) / maxP) * 100).toString() 
+                              : '';
+                            return { ...prev, oldPrice: val, discount: disc };
+                          });
+                        }}
                       />
                     </div>
 
@@ -1818,27 +2283,90 @@ const AdminDashboard = ({
                           {uploadedImages.map((img, idx) => (
                             <div 
                               key={idx} 
-                              className="position-relative border rounded-3 overflow-hidden bg-white shadow-sm" 
-                              style={{ width: '80px', height: '80px', transition: 'all 0.2s' }}
+                              className="position-relative border rounded-3 overflow-hidden bg-white shadow-sm d-flex flex-column" 
+                              style={{ width: '100px', height: '130px', transition: 'all 0.2s' }}
                             >
-                              <img src={img} alt="" className="w-100 h-100 object-fit-contain p-1" />
-                              {idx === 0 && (
-                                <span className="position-absolute top-0 start-0 badge bg-orange text-white" style={{ fontSize: '0.55rem', borderRadius: '0 0 8px 0' }}>
-                                  Principale
+                              {/* Top image preview */}
+                              <div className="flex-grow-1 position-relative d-flex align-items-center justify-content-center bg-white p-1" style={{ height: '95px' }}>
+                                <img src={img} alt="" className="w-100 h-100 object-fit-contain" />
+                                {idx === 0 ? (
+                                  <span className="position-absolute top-0 start-0 badge bg-orange text-white" style={{ fontSize: '0.55rem', borderRadius: '0 0 8px 0' }}>
+                                    Principale
+                                  </span>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      // Set as main image (move to index 0)
+                                      setUploadedImages(prev => {
+                                        const newImgs = [...prev];
+                                        const [target] = newImgs.splice(idx, 1);
+                                        newImgs.unshift(target);
+                                        return newImgs;
+                                      });
+                                    }}
+                                    className="btn btn-light btn-sm position-absolute top-0 start-0 p-0.5 m-1 rounded-circle border shadow-sm d-flex align-items-center justify-content-center"
+                                    style={{ width: '20px', height: '20px', fontSize: '0.65rem' }}
+                                    title="Définir comme principale"
+                                  >
+                                    ⭐
+                                  </button>
+                                )}
+                                <button 
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleRemoveImage(idx);
+                                  }}
+                                  className="btn btn-danger btn-sm p-0.5 rounded-circle position-absolute top-0 end-0 m-1 shadow-sm d-flex align-items-center justify-content-center"
+                                  style={{ width: '20px', height: '20px', fontSize: '0.65rem' }}
+                                  title="Supprimer cette image"
+                                >
+                                  <X size={10} />
+                                </button>
+                              </div>
+                              {/* Bottom control bar */}
+                              <div className="d-flex align-items-center justify-content-between border-top bg-light px-1 py-0.5" style={{ height: '35px' }}>
+                                <button
+                                  type="button"
+                                  disabled={idx === 0}
+                                  onClick={() => {
+                                    setUploadedImages(prev => {
+                                      const newImgs = [...prev];
+                                      const temp = newImgs[idx];
+                                      newImgs[idx] = newImgs[idx - 1];
+                                      newImgs[idx - 1] = temp;
+                                      return newImgs;
+                                    });
+                                  }}
+                                  className="btn btn-link btn-sm p-0 text-dark border-0 fw-bold text-decoration-none"
+                                  style={{ visibility: idx === 0 ? 'hidden' : 'visible' }}
+                                  title="Déplacer vers la gauche"
+                                >
+                                  ◀
+                                </button>
+                                <span className="fw-bold text-muted" style={{ fontSize: '0.7rem' }}>
+                                  Photo {idx + 1}
                                 </span>
-                              )}
-                              <button 
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleRemoveImage(idx);
-                                }}
-                                className="btn btn-danger btn-sm p-1 rounded-circle position-absolute top-0 end-0 m-1 shadow-sm d-flex align-items-center justify-content-center"
-                                style={{ width: '20px', height: '20px', fontSize: '0.65rem' }}
-                                title="Supprimer cette image"
-                              >
-                                <X size={10} />
-                              </button>
+                                <button
+                                  type="button"
+                                  disabled={idx === uploadedImages.length - 1}
+                                  onClick={() => {
+                                    setUploadedImages(prev => {
+                                      const newImgs = [...prev];
+                                      const temp = newImgs[idx];
+                                      newImgs[idx] = newImgs[idx + 1];
+                                      newImgs[idx + 1] = temp;
+                                      return newImgs;
+                                    });
+                                  }}
+                                  className="btn btn-link btn-sm p-0 text-dark border-0 fw-bold text-decoration-none"
+                                  style={{ visibility: idx === uploadedImages.length - 1 ? 'hidden' : 'visible' }}
+                                  title="Déplacer vers la droite"
+                                >
+                                  ▶
+                                </button>
+                              </div>
                             </div>
                           ))}
                         </div>

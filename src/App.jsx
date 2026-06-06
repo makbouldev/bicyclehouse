@@ -94,6 +94,16 @@ function App() {
     // Firebase Firestore mode active
     setIsDataLoading(true);
 
+    let catsLoaded = false;
+    let prodsLoaded = false;
+    let ordersLoaded = false;
+
+    const checkLoaded = () => {
+      if (catsLoaded && prodsLoaded && ordersLoaded) {
+        setIsDataLoading(false);
+      }
+    };
+
     // 1. Sync Categories with Seeding
     const unsubCategories = onSnapshot(collection(db, 'categories'), async (snapshot) => {
       let catsList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -142,6 +152,8 @@ function App() {
         console.log("Seeding complete!");
       } else {
         setCategories(catsList);
+        catsLoaded = true;
+        checkLoaded();
       }
     });
 
@@ -151,6 +163,8 @@ function App() {
         const prodsList = snapshot.docs.map(doc => ({ id: isNaN(doc.id) ? doc.id : Number(doc.id), ...doc.data() }));
         setProducts(prodsList);
       }
+      prodsLoaded = true;
+      checkLoaded();
     });
 
     // 3. Sync Orders
@@ -158,7 +172,8 @@ function App() {
       const ordersList = snapshot.docs.map(doc => ({ id: isNaN(doc.id) ? doc.id : Number(doc.id), ...doc.data() }));
       ordersList.sort((a, b) => b.id - a.id);
       setOrders(ordersList);
-      setIsDataLoading(false);
+      ordersLoaded = true;
+      checkLoaded();
     });
 
     return () => {
@@ -203,6 +218,7 @@ function App() {
   const [sortBy, setSortBy] = useState('popularity');
   const [viewMode, setViewMode] = useState('grid');
   const [itemsPerPage, setItemsPerPage] = useState(12);
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Cart State
   const [cart, setCart] = useState([]);
@@ -246,7 +262,10 @@ function App() {
   // FAQs Accordion State
   const [openFaqId, setOpenFaqId] = useState(null);
 
-
+  // Reset page to 1 when filters or search change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeCategory, searchQuery, sortBy, itemsPerPage]);
 
   // Contact form submission state
   const [contactSubmitted, setContactSubmitted] = useState(false);
@@ -321,10 +340,10 @@ function App() {
     }
   }, [selectedProduct]);
 
-  // Scroll to top of the page on view or category changes
+  // Scroll to top of the page on view, category or page changes
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' });
-  }, [currentView, activeCategory]);
+  }, [currentView, activeCategory, currentPage]);
 
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
@@ -538,6 +557,13 @@ function App() {
 
   return (
     <div className="min-h-screen d-flex flex-column" style={{ backgroundColor: '#FCFCFC' }}>
+      {isDataLoading && (
+        <div className="position-fixed w-100 h-100 top-0 start-0 bg-white bg-opacity-75 d-flex justify-content-center align-items-center" style={{ zIndex: 2000 }}>
+          <div className="spinner-border text-orange" role="status">
+            <span className="visually-hidden">Chargement...</span>
+          </div>
+        </div>
+      )}
       {/* Promobar */}
       <Promobar />
 
@@ -688,6 +714,7 @@ function App() {
                   viewMode={viewMode}
                   setViewMode={setViewMode}
                   onSidebarToggle={() => setMobileSidebarOpen(true)}
+                  currentPage={currentPage}
                 />
                 
                 <ProductGrid
@@ -696,6 +723,8 @@ function App() {
                   onProductClick={(p) => setSelectedProduct(p)}
                   viewMode={viewMode}
                   itemsPerPage={itemsPerPage}
+                  currentPage={currentPage}
+                  onPageChange={setCurrentPage}
                 />
               </div>
             </div>
@@ -1607,7 +1636,77 @@ function App() {
                       </div>
                     </div>
 
-
+                    {/* Variants selector */}
+                    {selectedProduct.variants && selectedProduct.variants.length > 0 && (
+                      <div className="mb-4">
+                        {selectedProduct.variants.map((v) => (
+                          <div key={v.name} className="mb-3">
+                            <label className="form-label small fw-bold text-muted mb-1.5 d-block">
+                              {v.name} : <span className="text-dark fw-bold">{selectedVariants[v.name]}</span>
+                            </label>
+                            <div className="d-flex flex-wrap gap-2">
+                              {v.options.map((opt) => {
+                                const isSelected = selectedVariants[v.name] === opt.value;
+                                if (v.type === 'color') {
+                                  return (
+                                    <button
+                                      key={opt.value}
+                                      type="button"
+                                      onClick={() => {
+                                        setSelectedVariants(prev => ({ ...prev, [v.name]: opt.value }));
+                                        if (opt.image && selectedProduct.images) {
+                                          const idx = selectedProduct.images.indexOf(opt.image);
+                                          if (idx !== -1) {
+                                            setActiveImageIndex(idx);
+                                          }
+                                        }
+                                      }}
+                                      className="rounded-circle p-0 border d-flex align-items-center justify-content-center"
+                                      style={{
+                                        width: '32px',
+                                        height: '32px',
+                                        backgroundColor: opt.code || '#000',
+                                        borderColor: isSelected ? 'var(--pk-orange)' : '#ccc',
+                                        borderWidth: isSelected ? '3px' : '1px',
+                                        boxShadow: isSelected ? '0 0 0 2px rgba(255,124,21,0.2)' : 'none',
+                                        transition: 'all 0.2s'
+                                      }}
+                                      title={opt.value}
+                                    >
+                                      {isSelected && (
+                                        <Check size={14} className={
+                                          (opt.code === '#ffffff' || opt.code?.toLowerCase() === '#fff' || opt.code === '#FFD700') ? 'text-dark' : 'text-white'
+                                        } />
+                                      )}
+                                    </button>
+                                  );
+                                } else {
+                                  return (
+                                    <button
+                                      key={opt.value}
+                                      type="button"
+                                      onClick={() => {
+                                        setSelectedVariants(prev => ({ ...prev, [v.name]: opt.value }));
+                                        if (opt.image && selectedProduct.images) {
+                                          const idx = selectedProduct.images.indexOf(opt.image);
+                                          if (idx !== -1) {
+                                            setActiveImageIndex(idx);
+                                          }
+                                        }
+                                      }}
+                                      className={`btn btn-sm rounded-pill px-3 py-1.5 fw-semibold text-capitalize ${isSelected ? 'btn-orange text-white' : 'btn-outline-dark'}`}
+                                      style={{ fontSize: '0.8rem' }}
+                                    >
+                                      {opt.value}
+                                    </button>
+                                  );
+                                }
+                              })}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
 
                     {/* Actions panel */}
                     <div className="mt-auto d-flex flex-wrap gap-3">

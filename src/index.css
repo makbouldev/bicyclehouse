@@ -544,3 +544,33 @@ h1, h2, h3, h4, h5, h6 {
   }
 }
 
+/* Custom Orange Utilities */
+.bg-orange {
+  background-color: var(--pk-orange) !important;
+}
+.text-orange {
+  color: var(--pk-orange) !important;
+}
+.btn-orange {
+  background-color: var(--pk-orange) !important;
+  border-color: var(--pk-orange) !important;
+  color: white !important;
+  transition: var(--pk-transition);
+}
+.btn-orange:hover {
+  background-color: var(--pk-orange-hover) !important;
+  border-color: var(--pk-orange-hover) !important;
+  color: white !important;
+}
+.btn-outline-orange {
+  color: var(--pk-orange) !important;
+  border-color: var(--pk-orange) !important;
+  background-color: transparent !important;
+  transition: var(--pk-transition);
+}
+.btn-outline-orange:hover {
+  background-color: var(--pk-orange) !important;
+  color: white !important;
+}
+
+

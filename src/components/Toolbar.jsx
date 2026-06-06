@@ -9,8 +9,12 @@ const Toolbar = ({
   setSortBy,
   viewMode,
   setViewMode,
-  onSidebarToggle
+  onSidebarToggle,
+  currentPage = 1
 }) => {
+  const start = filteredCount === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
+  const end = Math.min(filteredCount, currentPage * itemsPerPage);
+
   return (
     <div className="bg-white border rounded-3 p-3 mb-4 shadow-sm d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
       {/* Left: Result Counter & Mobile Filter Trigger */}
@@ -25,7 +29,7 @@ const Toolbar = ({
         </button>
         
         <span className="text-muted" style={{ fontSize: '0.9rem', fontWeight: 500 }}>
-          Affichage de 1–{Math.min(filteredCount, itemsPerPage)} sur {filteredCount} résultats
+          Affichage de {start}–{end} sur {filteredCount} résultats
         </span>
       </div>
 
