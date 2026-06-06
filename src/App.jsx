@@ -11,7 +11,7 @@ import {
   Minus, 
   Trash2, 
   ChevronRight, 
-  ArrowLeft, 
+  ArrowLeft,
   Check, 
   Star,
   MapPin,
@@ -25,6 +25,7 @@ import {
   Info,
   LayoutGrid
 } from 'lucide-react';
+
 import confetti from 'canvas-confetti';
 import './App.css';
 
@@ -1801,7 +1802,7 @@ function App() {
         <div className="container-fluid px-4 px-lg-5">
           <div className="row g-4">
             {/* Branding Column */}
-            <div className="col-lg-4 col-md-5 col-12 mb-4 mb-lg-0">
+            <div className="col-lg-3 col-md-6 col-12 mb-4 mb-lg-0">
               <div className="d-flex align-items-center gap-2 mb-3">
                 <span className="fw-extrabold text-orange fs-4" style={{ fontFamily: 'var(--pk-font-heading)' }}>BICYCLE</span>
                 <div className="d-flex flex-column" style={{ lineHeight: '1' }}>
@@ -1812,10 +1813,6 @@ function App() {
               <p className="text-muted small-line-height mb-3" style={{ fontSize: '0.82rem', maxWidth: '300px' }}>
                 Le spécialiste marocain de la pièce détachée, d'entretien et d'outillage de vélo en ligne. Commandez en toute sécurité et payez à la livraison.
               </p>
-              <div className="d-flex gap-2">
-                <a href="https://facebook.com" target="_blank" className="btn btn-outline-dark btn-sm rounded-circle p-1 d-inline-flex"><User size={14} /></a>
-                <a href="https://instagram.com" target="_blank" className="btn btn-outline-dark btn-sm rounded-circle p-1 d-inline-flex"><User size={14} /></a>
-              </div>
             </div>
 
             {/* Quick Links Column */}
@@ -1831,12 +1828,43 @@ function App() {
             </div>
 
             {/* Informations Column */}
-            <div className="col-lg-3 col-md-4 col-6 mb-4 mb-md-0 text-start">
+            <div className="col-lg-2 col-md-3 col-6 mb-4 mb-md-0 text-start">
               <h6 className="fw-bold text-uppercase mb-3 small" style={{ letterSpacing: '0.5px' }}>Informations</h6>
               <ul className="list-unstyled d-flex flex-column gap-2" style={{ fontSize: '0.82rem' }}>
                 <li><button onClick={() => setView('about')} className="footer-link">À Propos</button></li>
                 <li><button onClick={() => setView('faqs')} className="footer-link">FAQs / Livraison</button></li>
                 <li><button onClick={() => setView('contact')} className="footer-link">Contactez-Nous</button></li>
+              </ul>
+            </div>
+
+            {/* Social Media Column */}
+            <div className="col-lg-2 col-md-3 col-6 mb-4 mb-md-0 text-start">
+              <h6 className="fw-bold text-uppercase mb-3 small" style={{ letterSpacing: '0.5px' }}>Suivez-nous</h6>
+              <ul className="list-unstyled d-flex flex-column gap-2" style={{ fontSize: '0.82rem' }}>
+                <li>
+                  <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="footer-link d-inline-flex align-items-center gap-2">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-orange"><rect width="20" height="20" x="2" y="2" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/></svg>
+                    <span>Instagram</span>
+                  </a>
+                </li>
+                <li>
+                  <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" className="footer-link d-inline-flex align-items-center gap-2">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-orange"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
+                    <span>Facebook</span>
+                  </a>
+                </li>
+                <li>
+                  <a href="https://wa.me/2126123456789" target="_blank" rel="noopener noreferrer" className="footer-link d-inline-flex align-items-center gap-2">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-orange"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+                    <span>WhatsApp</span>
+                  </a>
+                </li>
+                <li>
+                  <a href="https://tiktok.com" target="_blank" rel="noopener noreferrer" className="footer-link d-inline-flex align-items-center gap-2">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-orange"><path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5"/></svg>
+                    <span>TikTok</span>
+                  </a>
+                </li>
               </ul>
             </div>
 
