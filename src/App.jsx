@@ -1801,7 +1801,7 @@ function App() {
         <div className="container-fluid px-4 px-lg-5">
           <div className="row g-4">
             {/* Branding Column */}
-            <div className="col-md-4">
+            <div className="col-lg-4 col-md-5 col-12 mb-4 mb-lg-0">
               <div className="d-flex align-items-center gap-2 mb-3">
                 <span className="fw-extrabold text-orange fs-4" style={{ fontFamily: 'var(--pk-font-heading)' }}>BICYCLE</span>
                 <div className="d-flex flex-column" style={{ lineHeight: '1' }}>
@@ -1819,30 +1819,29 @@ function App() {
             </div>
 
             {/* Quick Links Column */}
-            <div className="col-md-2.5 col-6 text-start">
+            <div className="col-lg-2 col-md-3 col-6 mb-4 mb-md-0 text-start">
               <h6 className="fw-bold text-uppercase mb-3 small" style={{ letterSpacing: '0.5px' }}>Boutique</h6>
-              <ul className="list-unstyled d-flex flex-column gap-2" style={{ fontSize: '0.8rem' }}>
-                <li><button onClick={() => { setView('shop'); setActiveCategory('les-frein'); }} className="btn btn-link p-0 text-muted text-decoration-none">Freins</button></li>
-                <li><button onClick={() => { setView('shop'); setActiveCategory('les-gidon'); }} className="btn btn-link p-0 text-muted text-decoration-none">Guidons</button></li>
-                <li><button onClick={() => { setView('shop'); setActiveCategory('les-selle'); }} className="btn btn-link p-0 text-muted text-decoration-none">Selles</button></li>
-                <li><button onClick={() => { setView('shop'); setActiveCategory('les-accesoires'); }} className="btn btn-link p-0 text-muted text-decoration-none">Accessoires</button></li>
-                <li><button onClick={() => { setView('shop'); setActiveCategory('all'); }} className="btn btn-link p-0 text-muted text-decoration-none">Toutes les catégories</button></li>
+              <ul className="list-unstyled d-flex flex-column gap-2" style={{ fontSize: '0.82rem' }}>
+                <li><button onClick={() => { setView('shop'); setActiveCategory('les-frein'); }} className="footer-link">Freins</button></li>
+                <li><button onClick={() => { setView('shop'); setActiveCategory('les-gidon'); }} className="footer-link">Guidons</button></li>
+                <li><button onClick={() => { setView('shop'); setActiveCategory('les-selle'); }} className="footer-link">Selles</button></li>
+                <li><button onClick={() => { setView('shop'); setActiveCategory('les-accesoires'); }} className="footer-link">Accessoires</button></li>
+                <li><button onClick={() => { setView('shop'); setActiveCategory('all'); }} className="footer-link">Toutes les catégories</button></li>
               </ul>
             </div>
 
             {/* Informations Column */}
-            <div className="col-md-2.5 col-6 text-start">
+            <div className="col-lg-3 col-md-4 col-6 mb-4 mb-md-0 text-start">
               <h6 className="fw-bold text-uppercase mb-3 small" style={{ letterSpacing: '0.5px' }}>Informations</h6>
-              <ul className="list-unstyled d-flex flex-column gap-2" style={{ fontSize: '0.8rem' }}>
-                <li><button onClick={() => setView('about')} className="btn btn-link p-0 text-muted text-decoration-none">À Propos</button></li>
-                <li><button onClick={() => setView('faqs')} className="btn btn-link p-0 text-muted text-decoration-none">FAQs / Livraison</button></li>
-                <li><button onClick={() => setView('contact')} className="btn btn-link p-0 text-muted text-decoration-none">Contactez-Nous</button></li>
-
+              <ul className="list-unstyled d-flex flex-column gap-2" style={{ fontSize: '0.82rem' }}>
+                <li><button onClick={() => setView('about')} className="footer-link">À Propos</button></li>
+                <li><button onClick={() => setView('faqs')} className="footer-link">FAQs / Livraison</button></li>
+                <li><button onClick={() => setView('contact')} className="footer-link">Contactez-Nous</button></li>
               </ul>
             </div>
 
             {/* Contact Info Column */}
-            <div className="col-md-3 text-start">
+            <div className="col-lg-3 col-md-6 col-12 text-start">
               <h6 className="fw-bold text-uppercase mb-3 small" style={{ letterSpacing: '0.5px' }}>Service Client</h6>
               <div className="d-flex flex-column gap-2.5" style={{ fontSize: '0.82rem' }}>
                 <div className="d-flex align-items-start gap-2">

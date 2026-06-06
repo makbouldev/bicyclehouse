@@ -571,6 +571,19 @@ h1, h2, h3, h4, h5, h6 {
 .btn-outline-orange:hover {
   background-color: var(--pk-orange) !important;
   color: white !important;
+}/* Footer Link styling with smooth transition and premium hover effect */
+.footer-link {
+  color: var(--pk-medium-grey) !important;
+  text-decoration: none !important;
+  transition: all 0.2s ease-in-out;
+  font-weight: 500;
+  text-align: left;
+  display: inline-block;
+  background: none;
+  border: none;
+  padding: 0;
 }
-
-
+.footer-link:hover {
+  color: var(--pk-orange) !important;
+  transform: translateX(4px);
+}
