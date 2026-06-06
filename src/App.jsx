@@ -1837,14 +1837,7 @@ function App() {
                 <li><button onClick={() => setView('about')} className="btn btn-link p-0 text-muted text-decoration-none">À Propos</button></li>
                 <li><button onClick={() => setView('faqs')} className="btn btn-link p-0 text-muted text-decoration-none">FAQs / Livraison</button></li>
                 <li><button onClick={() => setView('contact')} className="btn btn-link p-0 text-muted text-decoration-none">Contactez-Nous</button></li>
-                <li>
-                  <a 
-                    href="/bicyclehouse/admin.html" 
-                    className="btn btn-link p-0 text-orange fw-bold text-decoration-none mt-2 d-flex align-items-center gap-1"
-                  >
-                    <span>🔑 Espace Admin</span>
-                  </a>
-                </li>
+
               </ul>
             </div>
 
