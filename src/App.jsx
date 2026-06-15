@@ -935,7 +935,7 @@ function App() {
                           <input 
                             type="tel" 
                             name="phone"
-                            placeholder="Ex: 0612345678 ou +212612345678"
+                            placeholder="Entrer numéro de téléphone..."
                             required
                             className="form-control"
                             value={checkoutForm.phone}
