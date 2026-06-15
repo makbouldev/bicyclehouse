@@ -592,7 +592,7 @@ const AdminDashboard = ({
     } catch (err) {
       console.error("Error saving product in database:", err);
       if (err.message && (err.message.includes('too large') || err.message.includes('limit') || err.message.includes('size'))) {
-        alert("Erreur de sauvegarde : L'image est trop grande pour être stockée dans la base de données. Veuillez utiliser une image plus petite ou configurer Cloudinary/Firebase Storage dans Vercel.");
+        alert(`Erreur de sauvegarde : L'image est trop grande pour être stockée dans la base de données. Veuillez utiliser une image plus petite ou configurer Cloudinary/Firebase Storage dans Vercel.\n\nDétails de l'erreur : ${err.message}`);
       } else {
         alert(`Erreur lors de la sauvegarde : ${err.message || err}`);
       }
