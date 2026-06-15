@@ -35,6 +35,7 @@ import logoImg from '../assets/logo.png';
 // Import Firebase database config
 import { db, isFirebaseConfigured } from '../firebase';
 import { doc, setDoc, deleteDoc } from 'firebase/firestore';
+import { getImageUrl } from '../utils/imageUrl';
 
 // Cloudinary config
 const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
@@ -920,7 +921,7 @@ const AdminDashboard = ({
 
               <hr className="my-3 text-muted" />
 
-              <a href="/bicyclehouse/" className="btn btn-outline-dark d-flex align-items-center justify-content-center gap-2 rounded-pill py-2 text-decoration-none fw-semibold mb-1.5" style={{ fontSize: '0.85rem' }}>
+              <a href={getImageUrl('/')} className="btn btn-outline-dark d-flex align-items-center justify-content-center gap-2 rounded-pill py-2 text-decoration-none fw-semibold mb-1.5" style={{ fontSize: '0.85rem' }}>
                 <span>Retour Boutique 🛒</span>
               </a>
 
@@ -1015,7 +1016,7 @@ const AdminDashboard = ({
 
               <hr className="my-2.5 text-muted" />
 
-              <a href="/bicyclehouse/" className="btn btn-outline-dark d-flex align-items-center justify-content-center gap-2 rounded-pill py-2 text-decoration-none fw-semibold mb-1.5" style={{ fontSize: '0.85rem' }}>
+              <a href={getImageUrl('/')} className="btn btn-outline-dark d-flex align-items-center justify-content-center gap-2 rounded-pill py-2 text-decoration-none fw-semibold mb-1.5" style={{ fontSize: '0.85rem' }}>
                 <span>Retour Boutique 🛒</span>
               </a>
 
@@ -1300,10 +1301,10 @@ const AdminDashboard = ({
                                     title="Cliquez pour agrandir"
                                   >
                                     <img 
-                                      src={item.product.image} 
+                                      src={getImageUrl(item.product.image)} 
                                       alt="" 
                                       className="w-100 h-100 object-fit-contain" 
-                                      onError={(e) => { e.target.src = '/bicyclehouse/hero.png'; }}
+                                      onError={(e) => { e.target.src = getImageUrl('/hero.png'); }}
                                     />
                                   </div>
                                   <div className="flex-grow-1 min-w-0">
@@ -1445,10 +1446,10 @@ const AdminDashboard = ({
                                 title="Cliquez pour agrandir"
                               >
                                 <img 
-                                  src={item.product.image} 
+                                  src={getImageUrl(item.product.image)} 
                                   alt="" 
                                   className="w-100 h-100 object-fit-contain" 
-                                  onError={(e) => { e.target.src = '/bicyclehouse/hero.png'; }}
+                                  onError={(e) => { e.target.src = getImageUrl('/hero.png'); }}
                                 />
                               </div>
                               <div className="flex-grow-1 min-w-0">
@@ -1570,7 +1571,7 @@ const AdminDashboard = ({
                         <td className="py-2 px-4">
                           <div className="d-flex align-items-center gap-3">
                             <div className="border rounded p-1 bg-white" style={{ width: '48px', height: '48px', flexShrink: 0 }}>
-                              <img src={p.image} alt={p.title} className="w-100 h-100 object-fit-contain" />
+                              <img src={getImageUrl(p.image)} alt={p.title} className="w-100 h-100 object-fit-contain" />
                             </div>
                             <div>
                               <div className="fw-bold text-truncate" style={{ maxWidth: '250px' }} title={p.title}>{p.title}</div>
@@ -1645,7 +1646,7 @@ const AdminDashboard = ({
                       <div key={p.id} className="card shadow-sm border rounded-3 bg-white p-3 text-start">
                         <div className="d-flex gap-3">
                           <div className="border rounded p-1 bg-white" style={{ width: '70px', height: '70px', flexShrink: 0 }}>
-                            <img src={p.image} alt={p.title} className="w-100 h-100 object-fit-contain" onError={(e) => { e.target.src = '/bicyclehouse/hero.png'; }} />
+                            <img src={getImageUrl(p.image)} alt={p.title} className="w-100 h-100 object-fit-contain" onError={(e) => { e.target.src = getImageUrl('/hero.png'); }} />
                           </div>
                           <div className="flex-grow-1 min-w-0">
                             <div className="small text-muted text-uppercase fw-semibold" style={{ fontSize: '0.7rem' }}>{p.brand}</div>
@@ -1764,7 +1765,7 @@ const AdminDashboard = ({
                                 </td>
                                 <td>
                                   <div className="d-flex align-items-center gap-2.5">
-                                    <img src={p.image} alt="" className="border rounded bg-white" style={{ width: '36px', height: '36px', objectFit: 'contain' }} />
+                                    <img src={getImageUrl(p.image)} alt="" className="border rounded bg-white" style={{ width: '36px', height: '36px', objectFit: 'contain' }} />
                                     <span className="fw-semibold text-dark text-truncate" style={{ maxWidth: '300px' }}>{p.title}</span>
                                   </div>
                                 </td>
@@ -2148,11 +2149,11 @@ const AdminDashboard = ({
               <div className="modal-body p-4 text-center">
                 <div className="border rounded-4 bg-white p-3 mb-3 d-flex align-items-center justify-content-center animate-zoom-in" style={{ minHeight: '300px', maxHeight: '400px', overflow: 'hidden' }}>
                   <img 
-                    src={previewItem.image} 
+                    src={getImageUrl(previewItem.image)} 
                     alt={previewItem.title} 
                     className="img-fluid rounded-3 object-fit-contain" 
                     style={{ maxHeight: '360px' }}
-                    onError={(e) => { e.target.src = '/bicyclehouse/hero.png'; }}
+                    onError={(e) => { e.target.src = getImageUrl('/hero.png'); }}
                   />
                 </div>
                 <div className="text-start mt-3">

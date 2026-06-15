@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ShoppingCart, Eye } from 'lucide-react';
+import { getImageUrl } from '../utils/imageUrl';
 
 const ProductCard = ({ 
   product, 
@@ -155,7 +156,7 @@ const ProductCard = ({
         <div style={{ width: '130px', height: '130px', flexShrink: 0, position: 'relative' }}>
           {!imgError ? (
             <img 
-              src={product.image} 
+              src={getImageUrl(product.image)} 
               alt={title} 
               className="w-100 h-100 object-fit-contain p-2"
               onError={() => setImgError(true)}
@@ -215,7 +216,7 @@ const ProductCard = ({
       <div className="image-container">
         {!imgError ? (
           <img 
-            src={product.image} 
+            src={getImageUrl(product.image)} 
             alt={title} 
             onError={() => setImgError(true)}
           />

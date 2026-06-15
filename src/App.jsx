@@ -42,6 +42,7 @@ import { PRODUCTS, CATEGORIES, MOCK_ORDERS } from './data/products';
 // Import Firebase database config
 import { db, isFirebaseConfigured } from './firebase';
 import { collection, doc, onSnapshot, setDoc } from 'firebase/firestore';
+import { getImageUrl } from './utils/imageUrl';
 
 const slugify = (text) => {
   return text
@@ -794,7 +795,7 @@ function App() {
                                   <div className="d-flex align-items-center gap-3 py-2">
                                     <div className="border rounded p-1" style={{ width: '50px', height: '50px', flexShrink: 0 }}>
                                       <img 
-                                        src={item.selectedImage || item.product.image} 
+                                        src={getImageUrl(item.selectedImage || item.product.image)} 
                                         alt={item.product.title} 
                                         className="w-100 h-100 object-fit-contain" 
                                       />
@@ -977,7 +978,7 @@ function App() {
                           <div key={`${item.product.id}-${idx}`} className="d-flex align-items-center justify-content-between mb-3 text-start">
                             <div className="d-flex align-items-center gap-2.5">
                               <div className="border rounded p-0.5" style={{ width: '36px', height: '36px', flexShrink: 0 }}>
-                                <img src={item.selectedImage || item.product.image} alt={item.product.title} className="w-100 h-100 object-fit-contain" />
+                                 <img src={getImageUrl(item.selectedImage || item.product.image)} alt={item.product.title} className="w-100 h-100 object-fit-contain" />
                               </div>
                               <div>
                                 <div className="small fw-bold text-truncate" style={{ maxWidth: '160px' }}>{item.product.title}</div>
@@ -1424,7 +1425,7 @@ function App() {
                 {cart.map((item, idx) => (
                   <div key={`${item.product.id}-${idx}`} className="cart-item">
                     <div className="border rounded p-1" style={{ width: '64px', height: '64px', flexShrink: 0 }}>
-                      <img src={item.selectedImage || item.product.image} alt={item.product.title} className="w-100 h-100 object-fit-contain" />
+                      <img src={getImageUrl(item.selectedImage || item.product.image)} alt={item.product.title} className="w-100 h-100 object-fit-contain" />
                     </div>
                     <div className="cart-item-details">
                       <div className="cart-item-title" title={item.product.title}>{item.product.title}</div>
@@ -1549,11 +1550,11 @@ function App() {
                             : selectedProduct.image;
                           return (
                             <img 
-                              src={currentImg} 
+                              src={getImageUrl(currentImg)} 
                               alt={selectedProduct.title} 
                               className="w-100 h-100 object-fit-contain"
                               onError={(e) => {
-                                e.target.src = '/bicyclehouse/hero.png';
+                                e.target.src = getImageUrl('/hero.png');
                               }}
                             />
                           );
@@ -1576,7 +1577,7 @@ function App() {
                               transition: 'var(--pk-transition)'
                             }}
                           >
-                            <img src={img} alt="" className="w-100 h-100 object-fit-contain p-1" />
+                            <img src={getImageUrl(img)} alt="" className="w-100 h-100 object-fit-contain p-1" />
                           </button>
                         ))}
                       </div>
@@ -1745,7 +1746,7 @@ function App() {
                             style={{ transition: 'all 0.2s' }}
                           >
                             <div className="d-flex align-items-center justify-content-center mb-1" style={{ height: '70px' }}>
-                              <img src={prod.image} alt={prod.title} className="img-fluid h-100 object-fit-contain" />
+                              <img src={getImageUrl(prod.image)} alt={prod.title} className="img-fluid h-100 object-fit-contain" />
                             </div>
                             <div className="small fw-semibold text-truncate">{prod.title}</div>
                             <div className="small text-orange fw-bold">{prod.price} DH</div>
