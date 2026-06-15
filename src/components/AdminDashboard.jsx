@@ -36,6 +36,11 @@ import logoImg from '../assets/logo.png';
 import { db, isFirebaseConfigured } from '../firebase';
 import { doc, setDoc, deleteDoc } from 'firebase/firestore';
 
+// Cloudinary config
+const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+const CLOUDINARY_UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+const isCloudinaryConfigured = !!(CLOUDINARY_CLOUD_NAME && CLOUDINARY_UPLOAD_PRESET);
+
 const AdminDashboard = ({ 
   products, 
   setProducts, 
@@ -92,6 +97,8 @@ const AdminDashboard = ({
   });
 
   const [uploadedImages, setUploadedImages] = useState([]);
+  const [imageUploading, setImageUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [productVariants, setProductVariants] = useState([]);
 
   // Category modal / editing state
@@ -285,23 +292,74 @@ const AdminDashboard = ({
     setShowProductModal(true);
   };
 
-  const handleFileChange = (e) => {
+  // Upload image to Cloudinary and return secure URL
+  const uploadImageToStorage = async (file) => {
+    // Fallback to base64 if Cloudinary not configured
+    if (!isCloudinaryConfigured) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+    formData.append('folder', 'bicyclehouse/products');
+
+    // Simulate progress (Cloudinary doesn't support real-time progress via fetch)
+    let progressInterval = null;
+    let fakeProgress = 0;
+    progressInterval = setInterval(() => {
+      fakeProgress = Math.min(fakeProgress + 10, 85);
+      setUploadProgress(fakeProgress);
+    }, 200);
+
+    try {
+      const response = await fetch(
+        `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
+        { method: 'POST', body: formData }
+      );
+
+      clearInterval(progressInterval);
+
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error?.message || 'Cloudinary upload failed');
+      }
+
+      const data = await response.json();
+      setUploadProgress(100);
+      return data.secure_url;
+    } catch (error) {
+      clearInterval(progressInterval);
+      throw error;
+    }
+  };
+
+  const handleFileChange = async (e) => {
     const files = Array.from(e.target.files);
     if (files.length === 0) return;
 
-    const filePromises = files.map(file => {
-      return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          resolve(reader.result);
-        };
-        reader.readAsDataURL(file);
-      });
-    });
+    setImageUploading(true);
+    setUploadProgress(0);
 
-    Promise.all(filePromises).then(base64Images => {
-      setUploadedImages(prev => [...prev, ...base64Images]);
-    });
+    try {
+      const urls = [];
+      for (const file of files) {
+        const url = await uploadImageToStorage(file);
+        urls.push(url);
+      }
+      setUploadedImages(prev => [...prev, ...urls]);
+    } catch (err) {
+      console.error('Failed to upload images:', err);
+      showToast('Erreur lors du téléchargement des images.', 'error');
+    } finally {
+      setImageUploading(false);
+      setUploadProgress(0);
+    }
   };
 
   const handleRemoveImage = (indexToRemove) => {
@@ -2251,128 +2309,54 @@ const AdminDashboard = ({
 
                     {/* Local File Upload Area */}
                     <div className="col-12">
-                      <label className="form-label small fw-bold text-muted">Photos du Produit (Local) *</label>
-                      <div 
-                        className="border border-dashed rounded-3 p-4 text-center cursor-pointer"
-                        style={{ 
-                          borderColor: 'var(--pk-orange)', 
-                          backgroundColor: 'rgba(255, 124, 21, 0.03)',
-                          transition: 'all 0.2s ease',
-                          position: 'relative'
-                        }}
-                        onClick={() => document.getElementById('productImageUpload').click()}
-                      >
-                        <input 
-                          type="file" 
-                          id="productImageUpload" 
-                          multiple 
-                          accept="image/*" 
-                          className="d-none" 
-                          onChange={handleFileChange}
-                        />
-                        <div className="d-flex flex-column align-items-center gap-2">
-                          <Plus size={24} className="text-orange" />
-                          <span className="fw-semibold text-dark" style={{ fontSize: '0.85rem' }}>Sélectionner des images depuis votre ordinateur</span>
-                          <span className="text-muted" style={{ fontSize: '0.75rem' }}>Formats acceptés: PNG, JPG, JPEG (Vous pouvez en sélectionner plusieurs)</span>
-                        </div>
-                      </div>
+                       <label className="form-label small fw-bold text-muted">Photos du Produit *</label>
+                       <div 
+                         className="border border-dashed rounded-3 p-4 text-center"
+                         style={{ 
+                           borderColor: imageUploading ? '#aaa' : 'var(--pk-orange)', 
+                           backgroundColor: imageUploading ? 'rgba(0,0,0,0.03)' : 'rgba(255, 124, 21, 0.03)',
+                           transition: 'all 0.2s ease',
+                           position: 'relative',
+                           cursor: imageUploading ? 'not-allowed' : 'pointer'
+                         }}
+                         onClick={() => !imageUploading && document.getElementById('productImageUpload').click()}
+                       >
+                         <input 
+                           type="file" 
+                           id="productImageUpload" 
+                           multiple 
+                           accept="image/*" 
+                           className="d-none" 
+                           onChange={handleFileChange}
+                           disabled={imageUploading}
+                         />
+                         {imageUploading ? (
+                           <div className="d-flex flex-column align-items-center gap-2">
+                             <div className="spinner-border text-orange" role="status" style={{ width: '28px', height: '28px', borderWidth: '3px' }}>
+                               <span className="visually-hidden">Chargement...</span>
+                             </div>
+                             <span className="fw-semibold text-dark" style={{ fontSize: '0.85rem' }}>Upload en cours vers Firebase Storage...</span>
+                             <div className="w-100" style={{ maxWidth: '250px' }}>
+                               <div className="progress" style={{ height: '6px', borderRadius: '10px' }}>
+                                 <div 
+                                   className="progress-bar bg-orange" 
+                                   role="progressbar" 
+                                   style={{ width: `${uploadProgress}%`, transition: 'width 0.3s ease' }}
+                                 ></div>
+                               </div>
+                               <span className="text-muted mt-1 d-block" style={{ fontSize: '0.75rem' }}>{uploadProgress}%</span>
+                             </div>
+                           </div>
+                         ) : (
+                           <div className="d-flex flex-column align-items-center gap-2">
+                             <Plus size={24} className="text-orange" />
+                             <span className="fw-semibold text-dark" style={{ fontSize: '0.85rem' }}>Sélectionner des images depuis votre ordinateur</span>
+                             <span className="text-muted" style={{ fontSize: '0.75rem' }}>Formats acceptés: PNG, JPG, JPEG · Les images seront hébergées sur Firebase Storage</span>
+                           </div>
+                         )}
+                       </div>
 
-                      {/* Image previews */}
-                      {uploadedImages.length > 0 && (
-                        <div className="d-flex flex-wrap gap-2.5 mt-3 p-2 bg-light rounded-3 border">
-                          {uploadedImages.map((img, idx) => (
-                            <div 
-                              key={idx} 
-                              className="position-relative border rounded-3 overflow-hidden bg-white shadow-sm d-flex flex-column" 
-                              style={{ width: '100px', height: '130px', transition: 'all 0.2s' }}
-                            >
-                              {/* Top image preview */}
-                              <div className="flex-grow-1 position-relative d-flex align-items-center justify-content-center bg-white p-1" style={{ height: '95px' }}>
-                                <img src={img} alt="" className="w-100 h-100 object-fit-contain" />
-                                {idx === 0 ? (
-                                  <span className="position-absolute top-0 start-0 badge bg-orange text-white" style={{ fontSize: '0.55rem', borderRadius: '0 0 8px 0' }}>
-                                    Principale
-                                  </span>
-                                ) : (
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      // Set as main image (move to index 0)
-                                      setUploadedImages(prev => {
-                                        const newImgs = [...prev];
-                                        const [target] = newImgs.splice(idx, 1);
-                                        newImgs.unshift(target);
-                                        return newImgs;
-                                      });
-                                    }}
-                                    className="btn btn-light btn-sm position-absolute top-0 start-0 p-0.5 m-1 rounded-circle border shadow-sm d-flex align-items-center justify-content-center"
-                                    style={{ width: '20px', height: '20px', fontSize: '0.65rem' }}
-                                    title="Définir comme principale"
-                                  >
-                                    ⭐
-                                  </button>
-                                )}
-                                <button 
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleRemoveImage(idx);
-                                  }}
-                                  className="btn btn-danger btn-sm p-0.5 rounded-circle position-absolute top-0 end-0 m-1 shadow-sm d-flex align-items-center justify-content-center"
-                                  style={{ width: '20px', height: '20px', fontSize: '0.65rem' }}
-                                  title="Supprimer cette image"
-                                >
-                                  <X size={10} />
-                                </button>
-                              </div>
-                              {/* Bottom control bar */}
-                              <div className="d-flex align-items-center justify-content-between border-top bg-light px-1 py-0.5" style={{ height: '35px' }}>
-                                <button
-                                  type="button"
-                                  disabled={idx === 0}
-                                  onClick={() => {
-                                    setUploadedImages(prev => {
-                                      const newImgs = [...prev];
-                                      const temp = newImgs[idx];
-                                      newImgs[idx] = newImgs[idx - 1];
-                                      newImgs[idx - 1] = temp;
-                                      return newImgs;
-                                    });
-                                  }}
-                                  className="btn btn-link btn-sm p-0 text-dark border-0 fw-bold text-decoration-none"
-                                  style={{ visibility: idx === 0 ? 'hidden' : 'visible' }}
-                                  title="Déplacer vers la gauche"
-                                >
-                                  ◀
-                                </button>
-                                <span className="fw-bold text-muted" style={{ fontSize: '0.7rem' }}>
-                                  Photo {idx + 1}
-                                </span>
-                                <button
-                                  type="button"
-                                  disabled={idx === uploadedImages.length - 1}
-                                  onClick={() => {
-                                    setUploadedImages(prev => {
-                                      const newImgs = [...prev];
-                                      const temp = newImgs[idx];
-                                      newImgs[idx] = newImgs[idx + 1];
-                                      newImgs[idx + 1] = temp;
-                                      return newImgs;
-                                    });
-                                  }}
-                                  className="btn btn-link btn-sm p-0 text-dark border-0 fw-bold text-decoration-none"
-                                  style={{ visibility: idx === uploadedImages.length - 1 ? 'hidden' : 'visible' }}
-                                  title="Déplacer vers la droite"
-                                >
-                                  ▶
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
                     </div>
-
                     {/* Description */}
                     <div className="col-12 text-start">
                       <label className="form-label small fw-bold text-muted">Description *</label>
@@ -2548,11 +2532,18 @@ const AdminDashboard = ({
                 </div>
 
                 <div className="modal-footer border-top px-4 py-3 bg-light">
-                  <button type="button" className="btn btn-outline-dark rounded-pill py-2 px-4" onClick={() => setShowProductModal(false)}>
+                  <button type="button" className="btn btn-outline-dark rounded-pill py-2 px-4" onClick={() => setShowProductModal(false)} disabled={imageUploading}>
                     Annuler
                   </button>
-                  <button type="submit" className="btn btn-primary rounded-pill py-2 px-4 fw-bold">
-                    Sauvegarder
+                  <button type="submit" className="btn btn-primary rounded-pill py-2 px-4 fw-bold d-flex align-items-center gap-2" disabled={imageUploading}>
+                    {imageUploading ? (
+                      <>
+                        <span className="spinner-border spinner-border-sm" role="status"></span>
+                        <span>Upload en cours...</span>
+                      </>
+                    ) : (
+                      <span>Sauvegarder</span>
+                    )}
                   </button>
                 </div>
               </form>
