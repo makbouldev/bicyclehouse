@@ -491,6 +491,17 @@ function App() {
       return;
     }
 
+    // Phone validation (06/07 with 10 digits OR +212 with 9 digits after it)
+    const rawPhone = checkoutForm.phone.trim();
+    const cleanPhone = rawPhone.replace(/[\s\-]/g, '');
+    const localRegex = /^0[67]\d{8}$/;
+    const internationalRegex = /^\+212[567]\d{8}$/; // supports Moroccan mobile (6/7) and fixed (5) lines
+
+    if (!localRegex.test(cleanPhone) && !internationalRegex.test(cleanPhone)) {
+      showToast("Téléphone invalide. Utilisez 06xxxxxxxx, 07xxxxxxxx ou +212xxxxxxxxx (9 chiffres après +212).", 'danger');
+      return;
+    }
+
     const getFrenchDate = () => {
       const date = new Date();
       const months = ['Janv', 'Févr', 'Mars', 'Avril', 'Mai', 'Juin', 'Juil', 'Août', 'Sept', 'Oct', 'Nov', 'Déc'];
@@ -507,7 +518,7 @@ function App() {
       date: getFrenchDate(),
       customer: {
         fullName: checkoutForm.fullName,
-        phone: checkoutForm.phone,
+        phone: cleanPhone, // Save the cleaned formatted phone number
         city: checkoutForm.city,
         address: checkoutForm.address
       },
@@ -924,12 +935,15 @@ function App() {
                           <input 
                             type="tel" 
                             name="phone"
-                            placeholder="0612345678"
+                            placeholder="Ex: 0612345678 ou +212612345678"
                             required
                             className="form-control"
                             value={checkoutForm.phone}
                             onChange={handleCheckoutFormChange}
                           />
+                          <small className="form-text text-muted mt-1 d-block" style={{ fontSize: '0.78rem' }}>
+                            Format requis : 10 chiffres commençant par 06 ou 07, ou +212 suivi de 9 chiffres.
+                          </small>
                         </div>
                         <div className="col-12">
                           <label className="form-label fw-semibold">Ville <span className="text-danger">*</span></label>
