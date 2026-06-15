@@ -399,6 +399,16 @@ const AdminDashboard = ({
     setUploadedImages(prev => prev.filter((_, idx) => idx !== indexToRemove));
   };
 
+  const makeMainImage = (index) => {
+    if (index === 0) return;
+    setUploadedImages(prev => {
+      const updated = [...prev];
+      const [selected] = updated.splice(index, 1);
+      updated.unshift(selected);
+      return updated;
+    });
+  };
+
   // Variant Builder Handlers
   const handleAddVariant = () => {
     setProductVariants(prev => [
@@ -2412,6 +2422,48 @@ const AdminDashboard = ({
                                  className="w-100 h-100 object-fit-contain rounded-2"
                                  onError={(e) => { e.target.src = getImageUrl('/hero.png'); }}
                                />
+
+                                {/* Main Image Badge / Rank selector */}
+                                {idx === 0 ? (
+                                  <span 
+                                    className="badge bg-warning text-dark position-absolute d-flex align-items-center justify-content-center fw-bold shadow-sm"
+                                    style={{ 
+                                      top: '-8px', 
+                                      left: '-8px', 
+                                      fontSize: '8px', 
+                                      padding: '3px 6px',
+                                      border: '1.5px solid white',
+                                      borderRadius: '10px',
+                                      zIndex: 10
+                                    }}
+                                    title="Photo principale (par défaut)"
+                                  >
+                                    ★ Principale
+                                  </span>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      makeMainImage(idx);
+                                    }}
+                                    className="btn btn-light btn-sm position-absolute d-flex align-items-center justify-content-center fw-bold text-muted shadow-sm"
+                                    style={{ 
+                                      top: '-8px', 
+                                      left: '-8px', 
+                                      fontSize: '9px', 
+                                      padding: '1px 5px',
+                                      border: '1.5px solid #ddd', 
+                                      borderRadius: '10px',
+                                      zIndex: 10,
+                                      backgroundColor: '#fff'
+                                    }}
+                                    title="Définir comme photo principale"
+                                  >
+                                    #{idx + 1}
+                                  </button>
+                                )}
+
                                <button
                                  type="button"
                                  onClick={(e) => {
