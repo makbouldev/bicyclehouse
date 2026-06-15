@@ -230,6 +230,20 @@ const AdminDashboard = ({
     }
   };
 
+  // Delete order
+  const handleDeleteOrder = (orderId) => {
+    if (window.confirm(`Êtes-vous sûr de vouloir supprimer définitivement la commande #${orderId.toString().slice(-6)} ?`)) {
+      if (isFirebaseConfigured) {
+        deleteDoc(doc(db, 'orders', orderId.toString()))
+          .then(() => showToast('Commande supprimée.'))
+          .catch(err => console.error("Error deleting order in Firestore:", err));
+      } else {
+        setOrders(prev => prev.filter(o => o.id !== orderId));
+        showToast('Commande supprimée.');
+      }
+    }
+  };
+
   // Toggle product stock status
   const toggleStockStatus = (productId) => {
     const product = products.find(p => p.id === productId);
@@ -1399,7 +1413,7 @@ const AdminDashboard = ({
                           </td>
 
                           <td className="text-end py-3 px-4">
-                            <div className="d-flex justify-content-end gap-1.5">
+                            <div className="d-flex justify-content-end gap-1.5 align-items-center">
                               {order.status !== 'Confirmé' && (
                                 <button 
                                   onClick={() => updateOrderStatus(order.id, 'Confirmé')}
@@ -1430,6 +1444,13 @@ const AdminDashboard = ({
                                   <span>En attente</span>
                                 </button>
                               )}
+                              <button 
+                                onClick={() => handleDeleteOrder(order.id)}
+                                className="btn btn-outline-danger btn-sm rounded-circle p-1.5 d-inline-flex"
+                                title="Supprimer la commande"
+                              >
+                                <Trash2 size={14} />
+                              </button>
                             </div>
                           </td>
                         </tr>
@@ -1533,7 +1554,7 @@ const AdminDashboard = ({
                             <span className="text-muted small">Total : </span>
                             <span className="fw-bold text-dark">{order.total} DH</span>
                           </div>
-                          <div className="d-flex gap-1">
+                          <div className="d-flex gap-1.5 align-items-center">
                             {order.status !== 'Confirmé' && (
                               <button 
                                 onClick={() => updateOrderStatus(order.id, 'Confirmé')}
@@ -1564,6 +1585,14 @@ const AdminDashboard = ({
                                 <span>Attente</span>
                               </button>
                             )}
+                            <button 
+                              onClick={() => handleDeleteOrder(order.id)}
+                              className="btn btn-outline-danger btn-sm rounded-circle p-1.5 d-flex align-items-center justify-content-center border"
+                              style={{ width: '28px', height: '28px' }}
+                              title="Supprimer la commande"
+                            >
+                              <Trash2 size={12} />
+                            </button>
                           </div>
                         </div>
                       </div>
