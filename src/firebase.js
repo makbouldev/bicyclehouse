@@ -1,5 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage';
 
 const apiKey = import.meta.env.VITE_FIREBASE_API_KEY;
 const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
@@ -8,6 +9,7 @@ export const isFirebaseConfigured = !!(apiKey && projectId && apiKey !== 'your_a
 
 let app = null;
 let db = null;
+let storage = null;
 
 if (isFirebaseConfigured) {
   try {
@@ -21,6 +23,7 @@ if (isFirebaseConfigured) {
     };
     app = initializeApp(firebaseConfig);
     db = getFirestore(app);
+    storage = getStorage(app);
   } catch (error) {
     console.error("Failed to initialize Firebase:", error);
   }
@@ -28,4 +31,5 @@ if (isFirebaseConfigured) {
   console.warn("Firebase is not configured. Falling back to LocalStorage mode. Fill in your .env file to enable Cloud Database.");
 }
 
-export { db };
+export { db, storage };
+

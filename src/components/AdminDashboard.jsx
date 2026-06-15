@@ -33,8 +33,9 @@ import {
 import logoImg from '../assets/logo.png';
 
 // Import Firebase database config
-import { db, isFirebaseConfigured } from '../firebase';
+import { db, isFirebaseConfigured, storage } from '../firebase';
 import { doc, setDoc, deleteDoc } from 'firebase/firestore';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { getImageUrl } from '../utils/imageUrl';
 
 // Cloudinary config
@@ -295,49 +296,80 @@ const AdminDashboard = ({
 
   // Upload image to Cloudinary and return secure URL
   const uploadImageToStorage = async (file) => {
-    // Fallback to base64 if Cloudinary not configured
-    if (!isCloudinaryConfigured) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-    }
+    // 1. Cloudinary upload if configured
+    if (isCloudinaryConfigured) {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+      formData.append('folder', 'bicyclehouse/products');
 
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
-    formData.append('folder', 'bicyclehouse/products');
+      // Simulate progress (Cloudinary doesn't support real-time progress via fetch)
+      let progressInterval = null;
+      let fakeProgress = 0;
+      progressInterval = setInterval(() => {
+        fakeProgress = Math.min(fakeProgress + 10, 85);
+        setUploadProgress(fakeProgress);
+      }, 200);
 
-    // Simulate progress (Cloudinary doesn't support real-time progress via fetch)
-    let progressInterval = null;
-    let fakeProgress = 0;
-    progressInterval = setInterval(() => {
-      fakeProgress = Math.min(fakeProgress + 10, 85);
-      setUploadProgress(fakeProgress);
-    }, 200);
+      try {
+        const response = await fetch(
+          `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
+          { method: 'POST', body: formData }
+        );
 
-    try {
-      const response = await fetch(
-        `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
-        { method: 'POST', body: formData }
-      );
+        clearInterval(progressInterval);
 
-      clearInterval(progressInterval);
+        if (!response.ok) {
+          const err = await response.json();
+          throw new Error(err.error?.message || 'Cloudinary upload failed');
+        }
 
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error?.message || 'Cloudinary upload failed');
+        const data = await response.json();
+        setUploadProgress(100);
+        return data.secure_url;
+      } catch (error) {
+        clearInterval(progressInterval);
+        throw error;
       }
-
-      const data = await response.json();
-      setUploadProgress(100);
-      return data.secure_url;
-    } catch (error) {
-      clearInterval(progressInterval);
-      throw error;
     }
+
+    // 2. Firebase Storage fallback if configured
+    if (storage) {
+      try {
+        const fileRef = ref(storage, `products/${Date.now()}_${file.name}`);
+        const uploadTask = uploadBytesResumable(fileRef, file);
+
+        return new Promise((resolve, reject) => {
+          uploadTask.on('state_changed',
+            (snapshot) => {
+              const progress = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+              setUploadProgress(progress);
+            },
+            (error) => {
+              reject(error);
+            },
+            async () => {
+              const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+              resolve(downloadURL);
+            }
+          );
+        });
+      } catch (error) {
+        throw error;
+      }
+    }
+
+    // 3. Fallback to base64 if neither is configured (with size check)
+    console.warn("Neither Cloudinary nor Firebase Storage are configured. Falling back to Base64 (not recommended for large files).");
+    if (file.size > 250 * 1024) { // 250KB limit to prevent Firestore/LocalStorage quota errors
+      throw new Error("L'image est trop grande (max 250Ko sans configuration Cloudinary ou Firebase Storage dans Vercel).");
+    }
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
   };
 
   const handleFileChange = async (e) => {
@@ -465,7 +497,7 @@ const AdminDashboard = ({
   };
 
   // Handle Product Form Submit
-  const handleProductSubmit = (e) => {
+  const handleProductSubmit = async (e) => {
     e.preventDefault();
 
     // Find category label from selected category ID
@@ -521,34 +553,40 @@ const AdminDashboard = ({
       variants: cleanVariants
     };
 
-    if (editingProduct) {
-      if (isFirebaseConfigured) {
-        setDoc(doc(db, 'products', editingProduct.id.toString()), productData, { merge: true })
-          .then(() => showToast('Produit mis à jour avec succès.'))
-          .catch(err => console.error("Error editing product in Firestore:", err));
+    try {
+      if (editingProduct) {
+        if (isFirebaseConfigured) {
+          await setDoc(doc(db, 'products', editingProduct.id.toString()), productData, { merge: true });
+          showToast('Produit mis à jour avec succès.');
+        } else {
+          setProducts(prev => 
+            prev.map(p => p.id === editingProduct.id ? { ...p, ...productData } : p)
+          );
+          showToast('Produit mis à jour avec succès.');
+        }
       } else {
-        setProducts(prev => 
-          prev.map(p => p.id === editingProduct.id ? { ...p, ...productData } : p)
-        );
-        showToast('Produit mis à jour avec succès.');
+        const newId = Date.now();
+        const newProduct = {
+          id: newId,
+          ...productData
+        };
+        if (isFirebaseConfigured) {
+          await setDoc(doc(db, 'products', newId.toString()), productData);
+          showToast('Produit ajouté avec succès.');
+        } else {
+          setProducts(prev => [...prev, newProduct]);
+          showToast('Produit ajouté avec succès.');
+        }
       }
-    } else {
-      const newId = Date.now();
-      const newProduct = {
-        id: newId,
-        ...productData
-      };
-      if (isFirebaseConfigured) {
-        setDoc(doc(db, 'products', newId.toString()), productData)
-          .then(() => showToast('Produit ajouté avec succès.'))
-          .catch(err => console.error("Error adding product in Firestore:", err));
+      setShowProductModal(false);
+    } catch (err) {
+      console.error("Error saving product in database:", err);
+      if (err.message && (err.message.includes('too large') || err.message.includes('limit') || err.message.includes('size'))) {
+        alert("Erreur de sauvegarde : L'image est trop grande pour être stockée dans la base de données. Veuillez utiliser une image plus petite ou configurer Cloudinary/Firebase Storage dans Vercel.");
       } else {
-        setProducts(prev => [...prev, newProduct]);
-        showToast('Produit ajouté avec succès.');
+        alert(`Erreur lors de la sauvegarde : ${err.message || err}`);
       }
     }
-
-    setShowProductModal(false);
   };
 
   // Helper to generate a URL/ID slug from category name
@@ -2356,6 +2394,49 @@ const AdminDashboard = ({
                            </div>
                          )}
                        </div>
+
+                       {/* Image Previews */}
+                       {uploadedImages.length > 0 && (
+                         <div className="d-flex flex-wrap gap-2.5 mt-3">
+                           {uploadedImages.map((imgUrl, idx) => (
+                             <div 
+                               key={idx} 
+                               className="position-relative border rounded-3 p-1 bg-white shadow-sm"
+                               style={{ width: '90px', height: '90px', transition: 'transform 0.2s' }}
+                               onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+                               onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                             >
+                               <img 
+                                 src={getImageUrl(imgUrl)} 
+                                 alt={`Product image ${idx + 1}`} 
+                                 className="w-100 h-100 object-fit-contain rounded-2"
+                                 onError={(e) => { e.target.src = getImageUrl('/hero.png'); }}
+                               />
+                               <button
+                                 type="button"
+                                 onClick={(e) => {
+                                   e.stopPropagation();
+                                   handleRemoveImage(idx);
+                                 }}
+                                 className="btn btn-danger btn-sm rounded-circle position-absolute d-flex align-items-center justify-content-center"
+                                 style={{ 
+                                   width: '20px', 
+                                   height: '20px', 
+                                   padding: 0, 
+                                   top: '-8px', 
+                                   right: '-8px', 
+                                   border: '2px solid white', 
+                                   fontSize: '10px',
+                                   zIndex: 10
+                                 }}
+                                 title="Supprimer cette photo"
+                               >
+                                 <X size={10} />
+                               </button>
+                             </div>
+                           ))}
+                         </div>
+                       )}
 
                     </div>
                     {/* Description */}
