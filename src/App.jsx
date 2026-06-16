@@ -290,7 +290,15 @@ function App() {
       const page = params.get('page') || 'shop';
       setView(page);
 
-      const productSlug = params.get('product');
+      // Check path first (/product/slug), then fallback to query param (?product=slug)
+      let productSlug = null;
+      const pathParts = window.location.pathname.split('/');
+      if (pathParts[1] === 'product' && pathParts[2]) {
+        productSlug = pathParts[2];
+      } else {
+        productSlug = params.get('product');
+      }
+
       if (productSlug) {
         const prod = products.find(p => slugify(p.title) === productSlug);
         setSelectedProduct(prod || null);
@@ -321,22 +329,22 @@ function App() {
     }
   }, [currentView]);
 
-  // Sync selectedProduct state changes with the URL search parameters (?product=slug)
+  // Sync selectedProduct state changes with the URL path (/product/slug)
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const currentProductSlug = params.get('product');
+    const pathParts = window.location.pathname.split('/');
+    const currentProductSlug = pathParts[1] === 'product' ? pathParts[2] : null;
 
     if (selectedProduct) {
       const targetSlug = slugify(selectedProduct.title);
       if (currentProductSlug !== targetSlug) {
         const url = new URL(window.location);
-        url.searchParams.set('product', targetSlug);
+        url.pathname = `/product/${targetSlug}`;
         window.history.pushState({}, '', url);
       }
     } else {
       if (currentProductSlug !== null) {
         const url = new URL(window.location);
-        url.searchParams.delete('product');
+        url.pathname = '/';
         window.history.pushState({}, '', url);
       }
     }
@@ -533,7 +541,7 @@ function App() {
         quantity: item.quantity,
         selectedVariants: item.selectedVariants
       })),
-      total: cartTotal + (cartTotal >= 600 ? 0 : 35),
+      total: cartTotal + 35,
       status: 'En attente'
     };
 
@@ -876,24 +884,13 @@ function App() {
                     </div>
                     <div className="d-flex justify-content-between mb-3">
                       <span className="text-muted">Livraison</span>
-                      <span>
-                        {cartTotal >= 600 ? (
-                          <strong className="text-success">Gratuit</strong>
-                        ) : (
-                          '35 DH'
-                        )}
-                      </span>
+                      <span>35 DH</span>
                     </div>
-                    {cartTotal < 600 && (
-                      <div className="alert alert-warning py-2 px-3 mb-4" style={{ fontSize: '0.78rem' }}>
-                        Ajoutez <strong>{600 - cartTotal} DH</strong> pour bénéficier de la <strong>livraison gratuite</strong> !
-                      </div>
-                    )}
                     <hr />
                     <div className="d-flex justify-content-between mb-4 mt-3">
                       <span className="fw-bold fs-5">Total à payer</span>
                       <span className="fw-bold fs-5 text-orange">
-                        {cartTotal + (cartTotal >= 600 ? 0 : 35)} DH
+                        {cartTotal + 35} DH
                       </span>
                     </div>
                     <button 
@@ -1019,12 +1016,12 @@ function App() {
                       </div>
                       <div className="d-flex justify-content-between mb-3">
                         <span className="text-muted">Livraison</span>
-                        <span>{cartTotal >= 600 ? 'Gratuit' : '35 DH'}</span>
+                        <span>35 DH</span>
                       </div>
                       <div className="d-flex justify-content-between mb-4 pt-2 border-top">
                         <span className="fw-bold">Total à payer</span>
                         <span className="fw-bold text-orange fs-5">
-                          {cartTotal + (cartTotal >= 600 ? 0 : 35)} DH
+                          {cartTotal + 35} DH
                         </span>
                       </div>
 
@@ -1081,7 +1078,7 @@ function App() {
                   </div>
                   <div className="d-flex justify-content-between mt-3 pt-2 border-top">
                     <span className="fw-bold">Montant total :</span>
-                    <span className="fw-bold text-orange fs-5">{cartTotal + (cartTotal >= 600 ? 0 : 35)} DH</span>
+                    <span className="fw-bold text-orange fs-5">{cartTotal + 35} DH</span>
                   </div>
                 </div>
 
@@ -1340,8 +1337,8 @@ function App() {
                 },
                 {
                   id: 2,
-                  q: "Comment bénéficier de la livraison gratuite ?",
-                  a: "La livraison est 100% gratuite pour toute commande supérieure ou égale à 600 DH. Pour toute commande d'un montant inférieur, des frais fixes de 35 DH s'appliquent pour couvrir le coût du transport."
+                  q: "Quels sont les frais de livraison ?",
+                  a: "Les frais de livraison sont fixes et s'élèvent à 35 DH pour toutes les commandes, partout au Maroc."
                 },
                 {
                   id: 3,
@@ -1491,24 +1488,12 @@ function App() {
                 
                 <div className="d-flex justify-content-between mb-3">
                   <span className="text-muted small">Frais de livraison :</span>
-                  <span className="fw-semibold">
-                    {cartTotal >= 600 ? <span className="text-success">Gratuit</span> : '35 DH'}
-                  </span>
+                  <span className="fw-semibold">35 DH</span>
                 </div>
-
-                {cartTotal < 600 ? (
-                  <div className="alert alert-light border p-2 mb-4" style={{ fontSize: '0.75rem' }}>
-                    🚴 Ajoutez <strong>{600 - cartTotal} DH</strong> pour la <strong>livraison gratuite</strong>.
-                  </div>
-                ) : (
-                  <div className="alert alert-success border p-2 mb-4 text-center" style={{ fontSize: '0.75rem' }}>
-                    🎉 Votre commande est éligible pour la <strong>livraison gratuite</strong> !
-                  </div>
-                )}
 
                 <div className="d-flex justify-content-between border-top pt-3 mb-4">
                   <span className="fw-bold fs-5">Total estimé :</span>
-                  <span className="fw-bold text-orange fs-5">{cartTotal + (cartTotal >= 600 ? 0 : 35)} DH</span>
+                  <span className="fw-bold text-orange fs-5">{cartTotal + 35} DH</span>
                 </div>
 
                 <div className="d-flex flex-column gap-2">

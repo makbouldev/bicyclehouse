@@ -81,6 +81,14 @@ const AdminDashboard = ({
   const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard', 'orders', 'products', 'categories', 'security'
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  // Bulk Selection State
+  const [selectedProductIds, setSelectedProductIds] = useState([]);
+
+  // Reset selected products when tab or search query changes
+  useEffect(() => {
+    setSelectedProductIds([]);
+  }, [activeTab, productSearch]);
+
   // Product Form Modal State
   const [showProductModal, setShowProductModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null); // null when adding new product
@@ -221,11 +229,98 @@ const AdminDashboard = ({
     if (window.confirm('Êtes-vous sûr de vouloir supprimer ce produit du catalogue ?')) {
       if (isFirebaseConfigured) {
         deleteDoc(doc(db, 'products', productId.toString()))
-          .then(() => showToast('Produit supprimé.'))
+          .then(() => {
+            showToast('Produit supprimé.');
+            setSelectedProductIds(prev => prev.filter(id => id !== productId));
+          })
           .catch(err => console.error("Error deleting product in Firestore:", err));
       } else {
         setProducts(prev => prev.filter(p => p.id !== productId));
+        setSelectedProductIds(prev => prev.filter(id => id !== productId));
         showToast('Produit supprimé.');
+      }
+    }
+  };
+
+  // Bulk Delete Products
+  const handleBulkDelete = async () => {
+    if (selectedProductIds.length === 0) return;
+    if (window.confirm(`Êtes-vous sûr de vouloir supprimer ces ${selectedProductIds.length} produits du catalogue ?`)) {
+      if (isFirebaseConfigured) {
+        try {
+          const promises = selectedProductIds.map(id => deleteDoc(doc(db, 'products', id.toString())));
+          await Promise.all(promises);
+          showToast(`${selectedProductIds.length} produits supprimés.`);
+          setSelectedProductIds([]);
+        } catch (err) {
+          console.error("Error bulk deleting products:", err);
+          showToast("Une erreur est survenue lors de la suppression.", "danger");
+        }
+      } else {
+        setProducts(prev => prev.filter(p => !selectedProductIds.includes(p.id)));
+        showToast(`${selectedProductIds.length} produits supprimés.`);
+        setSelectedProductIds([]);
+      }
+    }
+  };
+
+  // Bulk Change Category
+  const handleBulkChangeCategory = async (targetCatId) => {
+    if (!targetCatId) return;
+    const targetCat = categories.find(c => c.id === targetCatId);
+    if (!targetCat) return;
+
+    if (window.confirm(`Voulez-vous déplacer les ${selectedProductIds.length} produits sélectionnés vers la catégorie "${targetCat.name}" ?`)) {
+      if (isFirebaseConfigured) {
+        try {
+          const promises = selectedProductIds.map(id => 
+            setDoc(doc(db, 'products', id.toString()), { category: targetCat.id, categoryLabel: targetCat.name }, { merge: true })
+          );
+          await Promise.all(promises);
+          showToast(`Catégorie mise à jour pour ${selectedProductIds.length} produits.`);
+          setSelectedProductIds([]);
+        } catch (err) {
+          console.error("Error bulk changing category in Firestore:", err);
+          showToast("Une erreur est survenue lors de la mise à jour.", "danger");
+        }
+      } else {
+        setProducts(prev => 
+          prev.map(p => selectedProductIds.includes(p.id) 
+            ? { ...p, category: targetCat.id, categoryLabel: targetCat.name } 
+            : p
+          )
+        );
+        showToast(`Catégorie mise à jour pour ${selectedProductIds.length} produits.`);
+        setSelectedProductIds([]);
+      }
+    }
+  };
+
+  // Bulk Change Stock Status
+  const handleBulkStockStatus = async (isSoldOut) => {
+    const statusText = isSoldOut ? 'Épuisé' : 'En Stock';
+    if (window.confirm(`Voulez-vous marquer les ${selectedProductIds.length} produits sélectionnés comme "${statusText}" ?`)) {
+      if (isFirebaseConfigured) {
+        try {
+          const promises = selectedProductIds.map(id => 
+            setDoc(doc(db, 'products', id.toString()), { isSoldOut }, { merge: true })
+          );
+          await Promise.all(promises);
+          showToast(`Statut mis à jour pour ${selectedProductIds.length} produits.`);
+          setSelectedProductIds([]);
+        } catch (err) {
+          console.error("Error bulk updating stock in Firestore:", err);
+          showToast("Une erreur est survenue lors de la mise à jour.", "danger");
+        }
+      } else {
+        setProducts(prev => 
+          prev.map(p => selectedProductIds.includes(p.id) 
+            ? { ...p, isSoldOut } 
+            : p
+          )
+        );
+        showToast(`Statut mis à jour pour ${selectedProductIds.length} produits.`);
+        setSelectedProductIds([]);
       }
     }
   };
@@ -1629,12 +1724,85 @@ const AdminDashboard = ({
                 </div>
               </div>
 
+              {/* Bulk Actions Panel */}
+              {selectedProductIds.length > 0 && (
+                <div className="bg-dark text-white p-3 px-4 d-flex flex-wrap align-items-center justify-content-between gap-3 animation-fade-in" style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                  <div className="d-flex align-items-center gap-2">
+                    <span className="badge bg-orange fs-7 px-3 py-2 fw-bold">{selectedProductIds.length} sélectionné(s)</span>
+                  </div>
+                  <div className="d-flex align-items-center gap-2.5 flex-wrap">
+                    <select 
+                      className="form-select form-select-sm rounded-pill border-0 px-3 py-1.5"
+                      style={{ maxWidth: '210px', fontSize: '0.82rem', height: '36px', cursor: 'pointer' }}
+                      value=""
+                      onChange={(e) => {
+                        handleBulkChangeCategory(e.target.value);
+                        e.target.value = "";
+                      }}
+                    >
+                      <option value="" disabled>📁 Déplacer vers catégorie...</option>
+                      {categories.map(c => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
+
+                    <button 
+                      onClick={() => handleBulkStockStatus(false)}
+                      className="btn btn-sm btn-success rounded-pill px-3 py-1.5 fw-bold d-flex align-items-center gap-1.5"
+                      style={{ height: '36px', fontSize: '0.82rem' }}
+                    >
+                      Marquer En Stock
+                    </button>
+
+                    <button 
+                      onClick={() => handleBulkStockStatus(true)}
+                      className="btn btn-sm btn-warning rounded-pill px-3 py-1.5 fw-bold d-flex align-items-center gap-1.5 text-dark"
+                      style={{ height: '36px', fontSize: '0.82rem' }}
+                    >
+                      Marquer Épuisé
+                    </button>
+
+                    <button 
+                      onClick={handleBulkDelete}
+                      className="btn btn-sm btn-danger rounded-pill px-3 py-1.5 fw-bold d-flex align-items-center gap-1.5"
+                      style={{ height: '36px', fontSize: '0.82rem' }}
+                    >
+                      <Trash2 size={14} />
+                      <span>Supprimer</span>
+                    </button>
+
+                    <button 
+                      onClick={() => setSelectedProductIds([])}
+                      className="btn btn-sm btn-outline-light rounded-pill px-3 py-1.5"
+                      style={{ height: '36px', fontSize: '0.82rem' }}
+                    >
+                      Annuler
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Desktop Products Table */}
               <div className="table-responsive d-none d-md-block">
                 <table className="table table-hover align-middle mb-0" style={{ fontSize: '0.88rem' }}>
                   <thead className="table-light">
                     <tr className="border-bottom" style={{ fontWeight: '600' }}>
-                      <th className="py-3 px-4">Produit</th>
+                      <th className="py-3 px-4" style={{ width: '50px' }}>
+                        <input 
+                          type="checkbox"
+                          className="form-check-input border-secondary"
+                          checked={filteredProductsList.length > 0 && selectedProductIds.length === filteredProductsList.length}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedProductIds(filteredProductsList.map(p => p.id));
+                            } else {
+                              setSelectedProductIds([]);
+                            }
+                          }}
+                          style={{ cursor: 'pointer' }}
+                        />
+                      </th>
+                      <th className="py-3 px-2">Produit</th>
                       <th>Marque</th>
                       <th>Catégorie</th>
                       <th className="text-center">Prix Actuel</th>
@@ -1643,70 +1811,88 @@ const AdminDashboard = ({
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredProductsList.map((p) => (
-                      <tr key={p.id} className="border-bottom">
-                        <td className="py-2 px-4">
-                          <div className="d-flex align-items-center gap-3">
-                            <div className="border rounded p-1 bg-white" style={{ width: '48px', height: '48px', flexShrink: 0 }}>
-                              <img src={getImageUrl(p.image)} alt={p.title} className="w-100 h-100 object-fit-contain" />
+                    {filteredProductsList.map((p) => {
+                      const isSelected = selectedProductIds.includes(p.id);
+                      return (
+                        <tr key={p.id} className={`border-bottom ${isSelected ? 'table-warning bg-opacity-10' : ''}`} style={{ transition: 'background-color 0.2s ease' }}>
+                          <td className="py-2 px-4">
+                            <input 
+                              type="checkbox"
+                              className="form-check-input border-secondary"
+                              checked={isSelected}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedProductIds(prev => [...prev, p.id]);
+                                } else {
+                                  setSelectedProductIds(prev => prev.filter(id => id !== p.id));
+                                }
+                              }}
+                              style={{ cursor: 'pointer' }}
+                            />
+                          </td>
+                          <td className="py-2 px-2">
+                            <div className="d-flex align-items-center gap-3">
+                              <div className="border rounded p-1 bg-white" style={{ width: '48px', height: '48px', flexShrink: 0 }}>
+                                <img src={getImageUrl(p.image)} alt={p.title} className="w-100 h-100 object-fit-contain" />
+                              </div>
+                              <div>
+                                <div className="fw-bold text-truncate" style={{ maxWidth: '250px' }} title={p.title}>{p.title}</div>
+                                {p.discount && <span className="badge bg-danger rounded-pill mt-0.5">-{p.discount}%</span>}
+                                {p.variants && (
+                                  <span className="badge bg-secondary rounded-pill ms-2" style={{ fontSize: '0.65rem' }}>
+                                    Variantes : {p.variants.map(v => v.name).join(', ')}
+                                  </span>
+                                )}
+                              </div>
                             </div>
-                            <div>
-                              <div className="fw-bold text-truncate" style={{ maxWidth: '250px' }} title={p.title}>{p.title}</div>
-                              {p.discount && <span className="badge bg-danger rounded-pill mt-0.5">-{p.discount}%</span>}
-                              {p.variants && (
-                                <span className="badge bg-secondary rounded-pill ms-2" style={{ fontSize: '0.65rem' }}>
-                                  Variantes : {p.variants.map(v => v.name).join(', ')}
-                                </span>
-                              )}
+                          </td>
+
+                          <td>{p.brand}</td>
+
+                          <td>
+                            <span className="badge bg-light text-dark border">{p.categoryLabel}</span>
+                          </td>
+
+                          <td className="text-center">
+                            <div className="fw-bold">{p.price} DH</div>
+                            {p.oldPrice && <div className="text-muted text-decoration-line-through small" style={{ fontSize: '0.78rem' }}>{p.oldPrice} DH</div>}
+                          </td>
+
+                          <td className="text-center">
+                            <button 
+                              onClick={() => toggleStockStatus(p.id)}
+                              className={`btn btn-sm rounded-pill fw-bold border-0 px-3 py-1 ${
+                                p.isSoldOut 
+                                  ? 'bg-danger bg-opacity-10 text-danger' 
+                                  : 'bg-success bg-opacity-10 text-success'
+                              }`}
+                              title="Cliquez pour changer le stock"
+                            >
+                              {p.isSoldOut ? 'Épuisé' : 'En Stock'}
+                            </button>
+                          </td>
+
+                          <td className="text-end py-2 px-4">
+                            <div className="d-flex justify-content-end gap-1.5">
+                              <button 
+                                onClick={() => openModal(p)}
+                                className="btn btn-outline-dark btn-sm rounded-circle p-1.5 d-inline-flex"
+                                title="Modifier le produit"
+                              >
+                                <Edit size={14} />
+                              </button>
+                              <button 
+                                onClick={() => handleDeleteProduct(p.id)}
+                                className="btn btn-outline-danger btn-sm rounded-circle p-1.5 d-inline-flex"
+                                title="Supprimer le produit"
+                              >
+                                <Trash2 size={14} />
+                              </button>
                             </div>
-                          </div>
-                        </td>
-
-                        <td>{p.brand}</td>
-
-                        <td>
-                          <span className="badge bg-light text-dark border">{p.categoryLabel}</span>
-                        </td>
-
-                        <td className="text-center">
-                          <div className="fw-bold">{p.price} DH</div>
-                          {p.oldPrice && <div className="text-muted text-decoration-line-through small" style={{ fontSize: '0.78rem' }}>{p.oldPrice} DH</div>}
-                        </td>
-
-                        <td className="text-center">
-                          <button 
-                            onClick={() => toggleStockStatus(p.id)}
-                            className={`btn btn-sm rounded-pill fw-bold border-0 px-3 py-1 ${
-                              p.isSoldOut 
-                                ? 'bg-danger bg-opacity-10 text-danger' 
-                                : 'bg-success bg-opacity-10 text-success'
-                            }`}
-                            title="Cliquez pour changer le stock"
-                          >
-                            {p.isSoldOut ? 'Épuisé' : 'En Stock'}
-                          </button>
-                        </td>
-
-                        <td className="text-end py-2 px-4">
-                          <div className="d-flex justify-content-end gap-1.5">
-                            <button 
-                              onClick={() => openModal(p)}
-                              className="btn btn-outline-dark btn-sm rounded-circle p-1.5 d-inline-flex"
-                              title="Modifier le produit"
-                            >
-                              <Edit size={14} />
-                            </button>
-                            <button 
-                              onClick={() => handleDeleteProduct(p.id)}
-                              className="btn btn-outline-danger btn-sm rounded-circle p-1.5 d-inline-flex"
-                              title="Supprimer le produit"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -1719,58 +1905,76 @@ const AdminDashboard = ({
                   </div>
                 ) : (
                   <div className="d-flex flex-column gap-3">
-                    {filteredProductsList.map((p) => (
-                      <div key={p.id} className="card shadow-sm border rounded-3 bg-white p-3 text-start">
-                        <div className="d-flex gap-3">
-                          <div className="border rounded p-1 bg-white" style={{ width: '70px', height: '70px', flexShrink: 0 }}>
-                            <img src={getImageUrl(p.image)} alt={p.title} className="w-100 h-100 object-fit-contain" onError={(e) => { e.target.src = getImageUrl('/hero.png'); }} />
+                    {filteredProductsList.map((p) => {
+                      const isSelected = selectedProductIds.includes(p.id);
+                      return (
+                        <div key={p.id} className={`card shadow-sm border rounded-3 bg-white p-3 text-start position-relative ${isSelected ? 'border-warning' : ''}`} style={{ transition: 'border-color 0.2s ease' }}>
+                          <div className="position-absolute top-0 end-0 p-2.5" style={{ zIndex: 5 }}>
+                            <input 
+                              type="checkbox"
+                              className="form-check-input border-secondary"
+                              checked={isSelected}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedProductIds(prev => [...prev, p.id]);
+                                } else {
+                                  setSelectedProductIds(prev => prev.filter(id => id !== p.id));
+                                }
+                              }}
+                              style={{ width: '1.25rem', height: '1.25rem', cursor: 'pointer' }}
+                            />
                           </div>
-                          <div className="flex-grow-1 min-w-0">
-                            <div className="small text-muted text-uppercase fw-semibold" style={{ fontSize: '0.7rem' }}>{p.brand}</div>
-                            <div className="fw-bold text-dark text-wrap mb-1" style={{ fontSize: '0.88rem' }}>{p.title}</div>
-                            <span className="badge bg-light text-dark border me-1" style={{ fontSize: '0.7rem' }}>{p.categoryLabel}</span>
-                            {p.discount && <span className="badge bg-danger rounded-pill" style={{ fontSize: '0.7rem' }}>-{p.discount}%</span>}
+                          <div className="d-flex gap-3">
+                            <div className="border rounded p-1 bg-white" style={{ width: '70px', height: '70px', flexShrink: 0 }}>
+                              <img src={getImageUrl(p.image)} alt={p.title} className="w-100 h-100 object-fit-contain" onError={(e) => { e.target.src = getImageUrl('/hero.png'); }} />
+                            </div>
+                            <div className="flex-grow-1 min-w-0 pe-4">
+                              <div className="small text-muted text-uppercase fw-semibold" style={{ fontSize: '0.7rem' }}>{p.brand}</div>
+                              <div className="fw-bold text-dark text-wrap mb-1" style={{ fontSize: '0.88rem' }}>{p.title}</div>
+                              <span className="badge bg-light text-dark border me-1" style={{ fontSize: '0.7rem' }}>{p.categoryLabel}</span>
+                              {p.discount && <span className="badge bg-danger rounded-pill" style={{ fontSize: '0.7rem' }}>-{p.discount}%</span>}
+                            </div>
                           </div>
-                        </div>
-                        
-                        <div className="d-flex justify-content-between align-items-center mt-3 pt-2.5 border-top">
-                          <div>
-                            <span className="fw-bold text-dark fs-6">{p.price} DH</span>
-                            {p.oldPrice && <span className="text-muted text-decoration-line-through small ms-2" style={{ fontSize: '0.78rem' }}>{p.oldPrice} DH</span>}
+                          
+                          <div className="d-flex justify-content-between align-items-center mt-3 pt-2.5 border-top">
+                            <div>
+                              <span className="fw-bold text-dark fs-6">{p.price} DH</span>
+                              {p.oldPrice && <span className="text-muted text-decoration-line-through small ms-2" style={{ fontSize: '0.78rem' }}>{p.oldPrice} DH</span>}
+                            </div>
+                            <button 
+                              onClick={() => toggleStockStatus(p.id)}
+                              className={`btn btn-sm rounded-pill fw-bold border-0 px-3 py-1 ${
+                                p.isSoldOut 
+                                  ? 'bg-danger bg-opacity-10 text-danger' 
+                                  : 'bg-success bg-opacity-10 text-success'
+                              }`}
+                              style={{ fontSize: '0.72rem' }}
+                            >
+                              {p.isSoldOut ? 'Épuisé' : 'En Stock'}
+                            </button>
                           </div>
-                          <button 
-                            onClick={() => toggleStockStatus(p.id)}
-                            className={`btn btn-sm rounded-pill fw-bold border-0 px-3 py-1 ${
-                              p.isSoldOut 
-                                ? 'bg-danger bg-opacity-10 text-danger' 
-                                : 'bg-success bg-opacity-10 text-success'
-                            }`}
-                            style={{ fontSize: '0.72rem' }}
-                          >
-                            {p.isSoldOut ? 'Épuisé' : 'En Stock'}
-                          </button>
-                        </div>
 
-                        <div className="d-flex justify-content-end gap-2 mt-3 pt-2.5 border-top">
-                          <button 
-                            onClick={() => openModal(p)}
-                            className="btn btn-outline-dark btn-sm rounded-pill px-3 py-1.5 d-flex align-items-center gap-1.5"
-                            style={{ fontSize: '0.75rem' }}
-                          >
-                            <Edit size={14} />
-                            <span>Modifier</span>
-                          </button>
-                          <button 
-                            onClick={() => handleDeleteProduct(p.id)}
-                            className="btn btn-outline-danger btn-sm rounded-pill px-3 py-1.5 d-flex align-items-center gap-1.5"
-                            style={{ fontSize: '0.75rem' }}
-                          >
-                            <Trash2 size={14} />
-                            <span>Supprimer</span>
-                          </button>
+                          <div className="d-flex justify-content-end gap-2 mt-3 pt-2.5 border-top">
+                            <button 
+                              onClick={() => openModal(p)}
+                              className="btn btn-outline-dark btn-sm rounded-pill px-3 py-1.5 d-flex align-items-center gap-1.5"
+                              style={{ fontSize: '0.75rem' }}
+                            >
+                              <Edit size={14} />
+                              <span>Modifier</span>
+                            </button>
+                            <button 
+                              onClick={() => handleDeleteProduct(p.id)}
+                              className="btn btn-outline-danger btn-sm rounded-pill px-3 py-1.5 d-flex align-items-center gap-1.5"
+                              style={{ fontSize: '0.75rem' }}
+                            >
+                              <Trash2 size={14} />
+                              <span>Supprimer</span>
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>

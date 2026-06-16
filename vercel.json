@@ -4,6 +4,10 @@
     {
       "source": "/admin",
       "destination": "/admin.html"
+    },
+    {
+      "source": "/product/:slug",
+      "destination": "/index.html"
     }
   ]
 }
