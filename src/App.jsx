@@ -301,7 +301,11 @@ function App() {
 
       if (productSlug) {
         const prod = products.find(p => slugify(p.title) === productSlug);
-        setSelectedProduct(prod || null);
+        if (prod) {
+          setSelectedProduct(prod);
+        } else if (!isDataLoading) {
+          setSelectedProduct(null);
+        }
       } else {
         setSelectedProduct(null);
       }
@@ -311,7 +315,7 @@ function App() {
 
     window.addEventListener('popstate', handleUrlRouting);
     return () => window.removeEventListener('popstate', handleUrlRouting);
-  }, [products]);
+  }, [products, isDataLoading]);
 
   // Sync currentView state changes with the URL search parameters (?page=view)
   useEffect(() => {
@@ -342,13 +346,13 @@ function App() {
         window.history.pushState({}, '', url);
       }
     } else {
-      if (currentProductSlug !== null) {
+      if (currentProductSlug !== null && !isDataLoading) {
         const url = new URL(window.location);
         url.pathname = '/';
         window.history.pushState({}, '', url);
       }
     }
-  }, [selectedProduct]);
+  }, [selectedProduct, isDataLoading]);
 
   // Scroll to top of the page on view, category or page changes
   useEffect(() => {
