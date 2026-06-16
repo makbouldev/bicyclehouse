@@ -6,8 +6,8 @@
       "destination": "/admin.html"
     },
     {
-      "source": "/product/:slug",
-      "destination": "/index.html"
+      "source": "/product/:path*",
+      "destination": "/"
     }
   ]
 }
