@@ -239,8 +239,10 @@ function App() {
     if (selectedProduct && selectedProduct.variants) {
       const initial = {};
       selectedProduct.variants.forEach((v) => {
-        const firstOpt = v.options[0];
-        initial[v.name] = firstOpt.hasOwnProperty('value') ? firstOpt.value : firstOpt;
+        if (v.options && v.options.length > 0) {
+          const firstOpt = v.options[0];
+          initial[v.name] = (firstOpt && typeof firstOpt === 'object' && firstOpt.hasOwnProperty('value')) ? firstOpt.value : firstOpt;
+        }
       });
       setSelectedVariants(initial);
     } else {
@@ -374,8 +376,10 @@ function App() {
     const defaultVariants = {};
     if (product.variants) {
       product.variants.forEach((v) => {
-        const firstOpt = v.options[0];
-        defaultVariants[v.name] = firstOpt.hasOwnProperty('value') ? firstOpt.value : firstOpt;
+        if (v.options && v.options.length > 0) {
+          const firstOpt = v.options[0];
+          defaultVariants[v.name] = (firstOpt && typeof firstOpt === 'object' && firstOpt.hasOwnProperty('value')) ? firstOpt.value : firstOpt;
+        }
       });
     }
     const finalVariants = Object.keys(variants).length > 0 ? variants : defaultVariants;
@@ -463,9 +467,9 @@ function App() {
       const query = searchQuery.toLowerCase();
       result = result.filter(
         (p) => 
-          p.title.toLowerCase().includes(query) || 
-          p.brand.toLowerCase().includes(query) ||
-          p.categoryLabel.toLowerCase().includes(query)
+          (p.title && p.title.toLowerCase().includes(query)) || 
+          (p.brand && p.brand.toLowerCase().includes(query)) ||
+          (p.categoryLabel && p.categoryLabel.toLowerCase().includes(query))
       );
     }
 
@@ -1658,16 +1662,17 @@ function App() {
                               {v.name} : <span className="text-dark fw-bold">{selectedVariants[v.name]}</span>
                             </label>
                             <div className="d-flex flex-wrap gap-2">
-                              {v.options.map((opt) => {
-                                const isSelected = selectedVariants[v.name] === opt.value;
+                              {v.options && v.options.map((opt) => {
+                                const optValue = (opt && typeof opt === 'object' && opt.hasOwnProperty('value')) ? opt.value : opt;
+                                const isSelected = selectedVariants[v.name] === optValue;
                                 if (v.type === 'color') {
                                   return (
                                     <button
-                                      key={opt.value}
+                                      key={optValue}
                                       type="button"
                                       onClick={() => {
-                                        setSelectedVariants(prev => ({ ...prev, [v.name]: opt.value }));
-                                        if (opt.image && selectedProduct.images) {
+                                        setSelectedVariants(prev => ({ ...prev, [v.name]: optValue }));
+                                        if (opt && typeof opt === 'object' && opt.image && selectedProduct.images) {
                                           const idx = selectedProduct.images.indexOf(opt.image);
                                           if (idx !== -1) {
                                             setActiveImageIndex(idx);
@@ -1678,17 +1683,17 @@ function App() {
                                       style={{
                                         width: '32px',
                                         height: '32px',
-                                        backgroundColor: opt.code || '#000',
+                                        backgroundColor: (opt && typeof opt === 'object') ? (opt.code || '#000') : opt,
                                         borderColor: isSelected ? 'var(--pk-orange)' : '#ccc',
                                         borderWidth: isSelected ? '3px' : '1px',
                                         boxShadow: isSelected ? '0 0 0 2px rgba(255,124,21,0.2)' : 'none',
                                         transition: 'all 0.2s'
                                       }}
-                                      title={opt.value}
+                                      title={optValue}
                                     >
                                       {isSelected && (
                                         <Check size={14} className={
-                                          (opt.code === '#ffffff' || opt.code?.toLowerCase() === '#fff' || opt.code === '#FFD700') ? 'text-dark' : 'text-white'
+                                          (opt && typeof opt === 'object' && (opt.code === '#ffffff' || opt.code?.toLowerCase() === '#fff' || opt.code === '#FFD700')) ? 'text-dark' : 'text-white'
                                         } />
                                       )}
                                     </button>
@@ -1696,11 +1701,11 @@ function App() {
                                 } else {
                                   return (
                                     <button
-                                      key={opt.value}
+                                      key={optValue}
                                       type="button"
                                       onClick={() => {
-                                        setSelectedVariants(prev => ({ ...prev, [v.name]: opt.value }));
-                                        if (opt.image && selectedProduct.images) {
+                                        setSelectedVariants(prev => ({ ...prev, [v.name]: optValue }));
+                                        if (opt && typeof opt === 'object' && opt.image && selectedProduct.images) {
                                           const idx = selectedProduct.images.indexOf(opt.image);
                                           if (idx !== -1) {
                                             setActiveImageIndex(idx);
@@ -1710,7 +1715,7 @@ function App() {
                                       className={`btn btn-sm rounded-pill px-3 py-1.5 fw-semibold text-capitalize ${isSelected ? 'btn-orange text-white' : 'btn-outline-dark'}`}
                                       style={{ fontSize: '0.8rem' }}
                                     >
-                                      {opt.value}
+                                      {optValue}
                                     </button>
                                   );
                                 }
