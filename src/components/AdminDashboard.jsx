@@ -84,10 +84,6 @@ const AdminDashboard = ({
   // Bulk Selection State
   const [selectedProductIds, setSelectedProductIds] = useState([]);
 
-  // Reset selected products when tab or search query changes
-  useEffect(() => {
-    setSelectedProductIds([]);
-  }, [activeTab, productSearch]);
 
   // Product Form Modal State
   const [showProductModal, setShowProductModal] = useState(false);
@@ -124,6 +120,11 @@ const AdminDashboard = ({
   const [productSearch, setProductSearch] = useState('');
   const [orderSearch, setOrderSearch] = useState('');
   const [contactSearch, setContactSearch] = useState('');
+
+  // Reset selected products when tab or search query changes
+  useEffect(() => {
+    setSelectedProductIds([]);
+  }, [activeTab, productSearch]);
 
   // Image/Detail Preview Modal State
   const [previewItem, setPreviewItem] = useState(null);
