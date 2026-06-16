@@ -832,9 +832,11 @@ function App() {
                                           ))}
                                         </div>
                                       )}
-                                      <small className="text-muted text-uppercase" style={{ fontSize: '0.65rem' }}>
-                                        {item.product.brand}
-                                      </small>
+                                      {item.product.brand && item.product.brand.trim() && (
+                                        <small className="text-muted text-uppercase" style={{ fontSize: '0.65rem' }}>
+                                          {item.product.brand}
+                                        </small>
+                                      )}
                                     </div>
                                   </div>
                                 </td>
@@ -1585,7 +1587,9 @@ function App() {
 
                   {/* Right Column: details info */}
                   <div className="col-md-7 d-flex flex-column">
-                    <span className="product-brand" style={{ letterSpacing: '1px' }}>{selectedProduct.brand}</span>
+                    {selectedProduct.brand && selectedProduct.brand.trim() && (
+                      <span className="product-brand" style={{ letterSpacing: '1px' }}>{selectedProduct.brand}</span>
+                    )}
                     <h3 className="fw-bold mb-2 h4" style={{ fontFamily: 'var(--pk-font-heading)' }}>{selectedProduct.title}</h3>
                     
                     {/* Rating stars */}
@@ -1618,14 +1622,18 @@ function App() {
                       )}
                     </div>
 
-                    <p className="text-muted mb-4 small-line-height" style={{ fontSize: '0.88rem', lineHeight: '1.5' }}>
-                      {selectedProduct.description}
-                    </p>
+                    {selectedProduct.description && selectedProduct.description.trim() && (
+                      <p className="text-muted mb-4 small-line-height" style={{ fontSize: '0.88rem', lineHeight: '1.5' }}>
+                        {selectedProduct.description}
+                      </p>
+                    )}
 
                     {/* Spec list */}
                     <div className="bg-light p-3 rounded-3 mb-4" style={{ fontSize: '0.8rem' }}>
                       <div className="row g-2">
-                        <div className="col-6"><strong>Marque :</strong> {selectedProduct.brand}</div>
+                        {selectedProduct.brand && selectedProduct.brand.trim() && (
+                          <div className="col-6"><strong>Marque :</strong> {selectedProduct.brand}</div>
+                        )}
                         <div className="col-6"><strong>Catégorie :</strong> {selectedProduct.categoryLabel}</div>
                         <div className="col-6">
                           <strong>Stock :</strong>{' '}

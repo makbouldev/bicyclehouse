@@ -167,10 +167,10 @@ const ProductCard = ({
         </div>
 
         <div className="flex-grow-1 d-flex flex-column text-start">
-          <div className="product-brand">{brand}</div>
+          {brand && brand.trim() && <div className="product-brand">{brand}</div>}
           <h4 className="product-title h6 mb-1 text-truncate" style={{ height: 'auto', display: 'block' }}>{title}</h4>
           <div className="text-muted mb-2" style={{ fontSize: '0.75rem' }}>{categoryLabel}</div>
-          <p className="product-desc mb-3 d-none d-md-block" style={{ height: 'auto' }}>{description}</p>
+          {description && description.trim() && <p className="product-desc mb-3 d-none d-md-block" style={{ height: 'auto' }}>{description}</p>}
           
           <div className="d-flex align-items-center justify-content-between mt-auto">
             <div className="product-price-section">
@@ -247,7 +247,7 @@ const ProductCard = ({
 
       {/* Body Details */}
       <div className="product-card-body">
-        <div className="product-brand">{brand}</div>
+        {brand && brand.trim() && <div className="product-brand">{brand}</div>}
         <h4 className="product-title" title={title}>
           {title}
         </h4>

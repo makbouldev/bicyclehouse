@@ -1930,7 +1930,9 @@ const AdminDashboard = ({
                               <img src={getImageUrl(p.image)} alt={p.title} className="w-100 h-100 object-fit-contain" onError={(e) => { e.target.src = getImageUrl('/hero.png'); }} />
                             </div>
                             <div className="flex-grow-1 min-w-0 pe-4">
-                              <div className="small text-muted text-uppercase fw-semibold" style={{ fontSize: '0.7rem' }}>{p.brand}</div>
+                              {p.brand && p.brand.trim() && (
+                                <div className="small text-muted text-uppercase fw-semibold" style={{ fontSize: '0.7rem' }}>{p.brand}</div>
+                              )}
                               <div className="fw-bold text-dark text-wrap mb-1" style={{ fontSize: '0.88rem' }}>{p.title}</div>
                               <span className="badge bg-light text-dark border me-1" style={{ fontSize: '0.7rem' }}>{p.categoryLabel}</span>
                               {p.discount && <span className="badge bg-danger rounded-pill" style={{ fontSize: '0.7rem' }}>-{p.discount}%</span>}
@@ -2502,10 +2504,9 @@ const AdminDashboard = ({
 
                     {/* Brand & Category */}
                     <div className="col-md-6">
-                      <label className="form-label small fw-bold text-muted">Marque *</label>
+                      <label className="form-label small fw-bold text-muted">Marque</label>
                       <input 
                         type="text" 
-                        required 
                         className="form-control rounded-3" 
                         value={productForm.brand}
                         onChange={(e) => setProductForm(prev => ({ ...prev, brand: e.target.value }))}
@@ -2727,9 +2728,8 @@ const AdminDashboard = ({
                     </div>
                     {/* Description */}
                     <div className="col-12 text-start">
-                      <label className="form-label small fw-bold text-muted">Description *</label>
+                      <label className="form-label small fw-bold text-muted">Description</label>
                       <textarea 
-                        required 
                         rows="3"
                         className="form-control rounded-3" 
                         value={productForm.description}
